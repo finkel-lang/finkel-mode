@@ -333,12 +333,9 @@ directory above at each time until root directory."
 
 (defun sk--prompt-for-stack-exec-sk ()
   "Prompt and construct command string to run sk with stack."
-  (let* ((default-yaml-file (sk--find-default-stack-yaml))
-         (yaml-file (read-string
-                     "Yaml file: "
-                     (or default-yaml-file nil)
-                     'sk-repl-yaml-history
-                     nil))
+  (let* ((yaml-file
+          (read-file-name "Yaml file: " nil nil t
+                          (or (sk--find-default-stack-yaml) nil)))
          (yaml-option
           (if yaml-file
               (concat "--stack-yaml=" yaml-file)
