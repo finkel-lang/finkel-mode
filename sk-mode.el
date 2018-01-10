@@ -102,7 +102,10 @@
                 ;; S-expressions and won't appear in SK codes.
                 "case" "class" "data" "default" "deriving" "do"
                 "foreign" "if" "import" "infix" "infixl" "infixr"
-                "instance" "let" "module" "newtype" "type" "where")
+                "instance" "let" "module" "newtype" "type" "where"
+
+                ;; GHC specific
+                "forall")
               t)
          "\\>")
        . 1)
@@ -255,6 +258,7 @@ STATE."
              (defmacro* . defmacro)
              (defmodule . 1)
              (do . 0)
+             (forall . (0 &body))
              (foreign . 3)
              (instance . 1)
              (let-macro . macrolet)
@@ -497,6 +501,8 @@ to the newly created inferior sk buffer."
       (bind "C-c M-j" 'sk-repl-connect)
       (bind "C-x C-e" 'lisp-eval-last-sexp)
       map)))
+
+(put 'defn 'doc-string-elt 2)
 
 ;;;###autoload
 (define-derived-mode sk-mode prog-mode "SK"
