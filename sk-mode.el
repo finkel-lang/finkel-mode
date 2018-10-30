@@ -131,14 +131,14 @@
 
       ;; Pragmas.
       (;; "\\(##\\(([^)]+)\\|\\w+\\)\\)"
-       "\\(##(?\\(\\w+\\)\\)"
+       "\\(#p(?\\(\\w+\\)\\)"
        (2 font-lock-preprocessor-face))
 
       ;; Type or data constructor.
       ;; (;; "\\((\\|\\[\\|{\\|\\s-\\)\\([A-Z][a-zA-Z_0-9.]*\\|:\\)"
       ;;  "\\(\\s-\\|\\-\\|(\\|\\[\\)\\(\\([A-Z][A-Za-z_0-9]*\\.?\\)+\\)"
       ;;  (2 font-lock-type-face))
-      ("\\_<\\([A-Z][A-Za-z0-9_]*\\.?\\)+"
+      ("\\_<!?\\([A-Z][A-Za-z0-9_]*\\.?\\)+"
        (0 font-lock-type-face))
 
       ;; Function binding and function type signature.
@@ -303,8 +303,8 @@ Lisp font lock syntactic face function."
   (setq-local indent-line-function 'lisp-indent-line)
   (setq-local indent-tabs-mode nil)
   (setq-local inferior-lisp-program sk-mode-inferior-lisp-command)
-  (setq-local inferior-lisp-load-command "(load \"%s\")\n")
-  (setq-local lisp-describe-sym-command "(info '%s)\n")
+  (setq-local inferior-lisp-load-command "(*_ load \"%s\")\n")
+  (setq-local lisp-describe-sym-command "(*_ info %s)\n")
   (setq-local lisp-indent-function 'sk-indent-function)
   (setq font-lock-defaults
         '(sk-mode-font-lock-keywords
@@ -363,11 +363,11 @@ directory above at each time until root directory."
   "Sentinel function for PROCESS with MSG."
   (cond
    ((string= "open\n" msg)
-    (message "ski: connected to server."))
+    (message "sk: connected to server."))
    ((string-prefix-p "failed" msg)
-    (message "ski %s: failed: %s" process msg))
+    (message "sk %s: failed: %s" process msg))
    (t
-    (message "ski: %s" (replace-regexp-in-string "\n" " " msg)))))
+    (message "sk: %s" (replace-regexp-in-string "\n" " " msg)))))
 
 (defun sk--make-connection (port)
   "Make and set network connection to REPL server with PORT."
