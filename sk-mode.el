@@ -53,7 +53,7 @@
   :type 'hook
   :group 'sk)
 
-(defcustom sk-repl-default-port 12305
+(defcustom sk-repl-default-port 50321
   "Default port of SK repl server to connect."
   :group 'sk
   :type 'integer)
@@ -81,7 +81,13 @@
 
 (eval-and-compile
   (defconst sk-mode-symbol-regexp
-    "\\(?:\\sw\\|\\s_\\|\\\\.\\)+"))
+    ;; "\\(?:\\sw\\|\\s_\\|\\\\.\\)+"
+    ;; "\\(?:\\sw\\|\\s_\\|\\\\.\\|'\\)+"
+    ;; "\\(?:\\sw\\|\\s_\\|\\\\.\\)\\(?:\\sw\\|\\s_\\|\\\\.\\|'\\)+"
+
+    ;; Using single quote is fine if it's not at the head position.
+    (let ((re "\\sw\\|\\s_\\|\\\\."))
+      (concat "\\(?:" re "\\)\\(?:" re "\\|'\\)+"))))
 
 (defconst sk-mode-font-lock-keywords-1
   (eval-when-compile
@@ -89,13 +95,14 @@
       ;; Keywords.
       (,(concat
          "(" (regexp-opt
-              '( ;; SK special forms.
-                "begin" "eval-when-compile" "define-macro" "let-macro"
-                "quote" "require"
+              '(;; SK special forms.
+                "begin" "eval-when-compile"
+                "quote" "require" "with-macro"
 
                 ;; SK core macros.
                 "cond" "defmacro" "defmacro-m" "eval-when" "macrolet"
-                "macrolet*" "match"
+                "macrolet-m" "match" "define-macro" "define-macro'"
+                "let-macro" "letfn"
 
                 ;; Haskell keywords, without `else', `in', and `then',
                 ;; since those are implicitly expressed with
@@ -105,7 +112,10 @@
                 "instance" "let" "module" "newtype" "type" "where"
 
                 ;; GHC specific
-                "forall")
+                "data family" "data instance"
+                "forall"
+                "newtype instance"
+                "type family" "type instance")
               t)
          "\\>")
        . 1)
@@ -138,23 +148,28 @@
       ;; (;; "\\((\\|\\[\\|{\\|\\s-\\)\\([A-Z][a-zA-Z_0-9.]*\\|:\\)"
       ;;  "\\(\\s-\\|\\-\\|(\\|\\[\\)\\(\\([A-Z][A-Za-z_0-9]*\\.?\\)+\\)"
       ;;  (2 font-lock-type-face))
-      ("\\_<!?\\([A-Z][A-Za-z0-9_]*\\.?\\)+"
+      ("\\_<!?\\([A-Z][A-Za-z0-9_-]*\\.?\\)+"
        (0 font-lock-type-face))
 
       ;; Function binding and function type signature.
-      ( ;; "(\\(defn\\|defmacro\\|defmacro*\\)\\ +(?\\(\\sw+\\)"
+      (;; "(\\(defn\\|defmacro\\|defmacro*\\)\\ +(?\\(\\sw+\\)"
        ,(concat
          ;; "(\\(def\\(n\\|n:\\|macro\\*?\\|ine-macro\\)\\)\\s-+(?\\("
          "(\\(" (regexp-opt
-                 '("defdo" "define-macro" "defmacro" "defmacro!"
-                   "defmacro*" "defmacro*!" "defmodule"
-                   "defn" "defn!")
+                 '("define-macro" "define-macro'"
+                   "defmacro" "defmacro'" "defmacro-m" "defmacro-m'"
+                   "defmodule"
+                   "defn" "defn'" "defdo")
                  t)
          "\\)\\s-+(?\\("
          sk-mode-symbol-regexp
          "\\)")
        (1 font-lock-keyword-face)
        (3 font-lock-function-name-face))
+
+      (,(concat "(\\(defn\\)\\s-+(::\\s-+\\(\\sw+\\)")
+       (1 font-lock-keyword-face)
+       (2 font-lock-function-name-face))
 
       ;; Top level type signature.
       (,(concat "^(\\(=\\|::\\)\\ +(?\\(" sk-mode-symbol-regexp "\\)")
@@ -185,6 +200,8 @@
     (modify-syntax-entry ?\[ "(]" table)
     (modify-syntax-entry ?\] ")[" table)
     (modify-syntax-entry ?| "_ 23bn" table)
+    (modify-syntax-entry ?~ "'  14" table)
+    (modify-syntax-entry ?! "'  14" table)
     (modify-syntax-entry ?\\ "/" table)
     table))
 
@@ -244,32 +261,36 @@ STATE."
 (defun sk--put-indentation-properties ()
   "Set properties for indentation."
   ;;; May worth moving the association to customizable variable.
-  (let ((l '((= . (0 &body))
+  (let ((l `((= . (0 &body))
              (| . 0)
              (:: . 1)
              (<- . 1)
              (begin . 0)
              (case . 1)
              (class . 1)
-             (data . 1)
+             (data . (0 &body))
              (defn . (0 &body))
              (defn! . defn)
              (defdo . defn)
-             (defmacro* . defmacro)
+             (defmacro . (0 &body))
+             (defmacro-m . defmacro)
+             (,(intern "defmacro'") . defmacro)
+             (,(intern "defmacro-m'") . defmacro)
              (defmodule . 1)
              (do . 0)
+             (eval-when-compile . 0)
              (forall . (0 &body))
              (foreign . 3)
              (instance . 1)
              (let-macro . macrolet)
-             (letv . let)
+             (letfn . flet)
              (macrolet .
                ((&whole 4 &rest (&whole 1 4 &lambda &body)) &body))
-             (macrolet* . macrolet)
+             (macrolet-m . macrolet)
              (match . 1)
              (module . 1)
-             (newtype . 1)
-             (type . 1)
+             (newtype . (0 &body))
+             (type . (0 &body))
              (where . 1))))
     (dolist (e l)
       (put (car e) 'common-lisp-indent-function
@@ -303,8 +324,8 @@ Lisp font lock syntactic face function."
   (setq-local indent-line-function 'lisp-indent-line)
   (setq-local indent-tabs-mode nil)
   (setq-local inferior-lisp-program sk-mode-inferior-lisp-command)
-  (setq-local inferior-lisp-load-command "(*_ load \"%s\")\n")
-  (setq-local lisp-describe-sym-command "(*_ info %s)\n")
+  (setq-local inferior-lisp-load-command ",load \"%s\"\n")
+  (setq-local lisp-describe-sym-command ",info %s\n")
   (setq-local lisp-indent-function 'sk-indent-function)
   (setq font-lock-defaults
         '(sk-mode-font-lock-keywords
@@ -352,7 +373,7 @@ directory above at each time until root directory."
            (number-to-string sk-repl-default-port))))
     (setq sk-repl-con-port port-number)
     (concat "stack exec " yaml-option
-            " sk -- --listen=" port-number
+            " -- sk repl --listen=" port-number
             " +RTS " sk-repl-default-rts-option)))
 
 (defun sk--connection-filter (process msg)
@@ -444,7 +465,7 @@ to the newly created inferior sk buffer."
   (let* ((use-stack (y-or-n-p "Use stack? "))
          (cmd (if use-stack
                   (sk--prompt-for-stack-exec-sk)
-                inferior-lisp-program)))
+                (concat inferior-lisp-program " repl"))))
     (inferior-sk cmd)
     ;; Wait for 1 second, until sk REPL process been launched. Better to
     ;; detect process startup with comint.
@@ -502,6 +523,18 @@ to the newly created inferior sk buffer."
       (bind "C-x C-e" 'lisp-eval-last-sexp)
       map)))
 
+(put :docn 'doc-string-elt 1)
+(put :docp 'doc-string-elt 1)
+(put :dock 'doc-string-elt 2)
+(put :dh1 'doc-string-elt 1)
+(put :dh2 'doc-string-elt 1)
+(put :dh3 'doc-string-elt 1)
+(put :dh4 'doc-string-elt 1)
+
+(put 'define-macro 'doc-string-elt 2)
+(put (intern "define-macro'") 'doc-string-elt 2)
+(put (intern "defmacro-m'") 'doc-string-elt 2)
+(put 'defmacro 'doc-string-elt 2)
 (put 'defn 'doc-string-elt 2)
 
 ;;;###autoload
