@@ -81,10 +81,6 @@
 
 (eval-and-compile
   (defconst sk-mode-symbol-regexp
-    ;; "\\(?:\\sw\\|\\s_\\|\\\\.\\)+"
-    ;; "\\(?:\\sw\\|\\s_\\|\\\\.\\|'\\)+"
-    ;; "\\(?:\\sw\\|\\s_\\|\\\\.\\)\\(?:\\sw\\|\\s_\\|\\\\.\\|'\\)+"
-
     ;; Using single quote is fine if it's not at the head position.
     (let ((re "\\sw\\|\\s_\\|\\\\."))
       (concat "\\(?:" re "\\)\\(?:" re "\\|'\\)+"))))
@@ -102,7 +98,7 @@
                 ;; SK core macros.
                 "cond" "defmacro" "defmacro-m" "eval-when" "macrolet"
                 "macrolet-m" "match" "define-macro" "define-macro'"
-                "let-macro" "letfn"
+                "let-macro"
 
                 ;; Haskell keywords, without `else', `in', and `then',
                 ;; since those are implicitly expressed with
@@ -140,21 +136,15 @@
        (1 font-lock-variable-name-face))
 
       ;; Pragmas.
-      (;; "\\(##\\(([^)]+)\\|\\w+\\)\\)"
-       "\\(#p(?\\(\\w+\\)\\)"
+      ("\\(#p(?\\(\\w+\\)\\)"
        (2 font-lock-preprocessor-face))
 
       ;; Type or data constructor.
-      ;; (;; "\\((\\|\\[\\|{\\|\\s-\\)\\([A-Z][a-zA-Z_0-9.]*\\|:\\)"
-      ;;  "\\(\\s-\\|\\-\\|(\\|\\[\\)\\(\\([A-Z][A-Za-z_0-9]*\\.?\\)+\\)"
-      ;;  (2 font-lock-type-face))
       ("\\_<!?\\([A-Z][A-Za-z0-9_-]*\\.?\\)+"
        (0 font-lock-type-face))
 
       ;; Function binding and function type signature.
-      (;; "(\\(defn\\|defmacro\\|defmacro*\\)\\ +(?\\(\\sw+\\)"
-       ,(concat
-         ;; "(\\(def\\(n\\|n:\\|macro\\*?\\|ine-macro\\)\\)\\s-+(?\\("
+      (,(concat
          "(\\(" (regexp-opt
                  '("define-macro" "define-macro'"
                    "defmacro" "defmacro'" "defmacro-m" "defmacro-m'"
@@ -180,6 +170,7 @@
       ("`\\([^ ]+\\)'"
        (1 font-lock-constant-face prepend))
 
+      ;; Block comment.
       ("\\(#|.*|#\\)"
        (1 font-lock-comment-face))
 
@@ -283,7 +274,6 @@ STATE."
              (foreign . 3)
              (instance . 1)
              (let-macro . macrolet)
-             (letfn . flet)
              (macrolet .
                ((&whole 4 &rest (&whole 1 4 &lambda &body)) &body))
              (macrolet-m . macrolet)
