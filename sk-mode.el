@@ -83,7 +83,7 @@
   (defconst sk-mode-symbol-regexp
     ;; Using single quote is fine if it's not at the head position.
     (let ((re "\\sw\\|\\s_\\|\\\\."))
-      (concat "\\(?:" re "\\)\\(?:" re "\\|'\\)+"))))
+      (concat "\\(?:" re "\\)\\(?:" re "\\|'\\)*"))))
 
 (defconst sk-mode-font-lock-keywords-1
   (eval-when-compile
@@ -92,13 +92,18 @@
       (,(concat
          "(" (regexp-opt
               '(;; SK special forms.
-                "begin" "eval-when-compile"
-                "quote" "require" "with-macro"
+                ":begin" ":eval-when-compile"
+                ":quote" ":quasiquote" ":require"
+                ":unquote" ":unquote-splice"
+                ":with-macro"
 
                 ;; SK core macros.
-                "cond" "defmacro" "defmacro-m" "eval-when" "macrolet"
-                "macrolet-m" "match" "define-macro" "define-macro'"
-                "let-macro"
+                "cond" "defmacro" "defmacro'" "defmacro-m" "eval-when"
+                "define-macro" "define-macro'" "eval-and-compile"
+                "macrolet" "macrolet-m" "let-macro"
+                "match"
+
+                "letp" "letv" "lefn" "fn"
 
                 ;; Haskell keywords, without `else', `in', and `then',
                 ;; since those are implicitly expressed with
@@ -123,6 +128,18 @@
       ;;  (5 font-lock-keyword-face)
       ;;  (9 font-lock-keyword-face))
 
+      ;; Pragmas.
+      ;;
+      ;; XXX: Move the cursor to matching closing parenthesis, otherwise
+      ;; match will close on e.g., a closing parenthesis used in type
+      ;; signature of SPECIALIZE pragma.
+      ;;
+      ("#p([^)]*"
+       (0 font-lock-preprocessor-face))
+
+      ("\\_<\\(:doc[$\\^]?\\|:dh[1234]\\)\\_>"
+       (0 font-lock-variable-name-face))
+
       ;; Wildcard
       ("\\_<\\(_\\)\\_>"
        (1 font-lock-keyword-face))
@@ -135,9 +152,9 @@
                 "\\_>")
        (1 font-lock-variable-name-face))
 
-      ;; Pragmas.
-      ("\\(#p(?\\(\\w+\\)\\)"
-       (2 font-lock-preprocessor-face))
+      ;; Operator functions.
+      ("\\_<[~!#$%&*+-./<=>?@^|\\\\]+\\_>"
+       (0 font-lock-variable-name-face))
 
       ;; Type or data constructor.
       ("\\_<!?\\([A-Z][A-Za-z0-9_-]*\\.?\\)+"
@@ -157,9 +174,18 @@
        (1 font-lock-keyword-face)
        (3 font-lock-function-name-face))
 
+      ;; Function definition (defn style)
       (,(concat "(\\(defn\\)\\s-+(::\\s-+\\(\\sw+\\)")
        (1 font-lock-keyword-face)
        (2 font-lock-function-name-face))
+
+      ;; defXXX style macro
+      (,(concat "(\\(def[^ \r\n\t]*\\)"
+                "\\>"
+                "[ \r\n\t]*"
+                (concat "\\(" sk-mode-symbol-regexp "\\)?"))
+       (1 font-lock-keyword-face)
+       (2 font-lock-function-name-face nil t))
 
       ;; Top level type signature.
       (,(concat "^(\\(=\\|::\\)\\ +(?\\(" sk-mode-symbol-regexp "\\)")
@@ -170,9 +196,13 @@
       ("`\\([^ ]+\\)'"
        (1 font-lock-constant-face prepend))
 
-      ;; Block comment.
-      ("\\(#|.*|#\\)"
-       (1 font-lock-comment-face))
+      ;; ;; Block comment.
+      ;; ("\\(#;.*;#\\)"
+      ;;  (1 font-lock-comment-face))
+
+      ;; Block comment start
+      ;; ("#;"
+      ;;  (1 font-lock-comment-face))
 
       ;; Errors.
       ("\\_<\\(error\\|undefined\\)\\_>"
@@ -186,14 +216,16 @@
   ;; The character `|' in copied syntax table behaves differently than
   ;; typical Lisp, which is used for block comments and guards in SK.
   (let ((table (copy-syntax-table lisp-mode-syntax-table)))
-    (modify-syntax-entry ?\{ "(}" table)
-    (modify-syntax-entry ?\} "){" table)
-    (modify-syntax-entry ?\[ "(]" table)
-    (modify-syntax-entry ?\] ")[" table)
-    (modify-syntax-entry ?| "_ 23bn" table)
-    (modify-syntax-entry ?~ "'  14" table)
-    (modify-syntax-entry ?! "'  14" table)
-    (modify-syntax-entry ?\\ "/" table)
+    (modify-syntax-entry ?\{ "(}  " table)
+    (modify-syntax-entry ?\} "){  " table)
+    (modify-syntax-entry ?\[ "(]  " table)
+    (modify-syntax-entry ?\] ")[  " table)
+    (modify-syntax-entry ?|  "_   " table)
+    (modify-syntax-entry ?~  "'   " table)
+    (modify-syntax-entry ?!  "'   " table)
+    (modify-syntax-entry ?\\ "/   " table)
+    (modify-syntax-entry ?#  ". 14nb" table)
+    (modify-syntax-entry ?\; "< 23" table)
     table))
 
 (defvar sk-imenu-generic-expression
@@ -259,29 +291,37 @@ STATE."
              (begin . 0)
              (case . 1)
              (class . 1)
-             (data . (0 &body))
-             (defn . (0 &body))
-             (defn! . defn)
+             (data . (1 &body))
+             (defn . (1 &body))
+             (,(intern "defn'") . defn)
              (defdo . defn)
              (defmacro . (0 &body))
              (defmacro-m . defmacro)
              (,(intern "defmacro'") . defmacro)
              (,(intern "defmacro-m'") . defmacro)
+             (describe . (1 &body))
              (defmodule . 1)
              (do . 0)
+             (eval-and-compile . 0)
              (eval-when-compile . 0)
+             ;; (fn . (0 &body))
+             ;; (fn . 0)
              (forall . (0 &body))
              (foreign . 3)
              (instance . 1)
              (let-macro . macrolet)
+             (letp . let)
+             (letf . let)
+             (letv . let)
+             (lefn . ((&whole 4 &rest (&whole 1 2 &lambda &body)) &body))
              (macrolet .
                ((&whole 4 &rest (&whole 1 4 &lambda &body)) &body))
              (macrolet-m . macrolet)
              (match . 1)
              (module . 1)
-             (newtype . (0 &body))
-             (type . (0 &body))
-             (where . 1))))
+             (newtype . (1 &body))
+             (type . (1 &body))
+             (where . (1 &body)))))
     (dolist (e l)
       (put (car e) 'common-lisp-indent-function
            (let ((v (cdr e)))
@@ -305,6 +345,7 @@ Lisp font lock syntactic face function."
 
 (defun sk--mode-variables ()
   "Initialize sk-mode variables."
+
   (setq-local comment-start ";")
   (setq-local comment-start-skip ";+ *")
   (setq-local comment-add 1)
@@ -317,15 +358,16 @@ Lisp font lock syntactic face function."
   (setq-local inferior-lisp-load-command ",load \"%s\"\n")
   (setq-local lisp-describe-sym-command ",info %s\n")
   (setq-local lisp-indent-function 'sk-indent-function)
-  (setq font-lock-defaults
-        '(sk-mode-font-lock-keywords
-          nil nil
-          (("+-*/.<>=!?$%_&~^:@" . "w"))
-          nil
-          (font-lock-mark-block-function . mark-defun)
-          (font-lock-extra-managed-props help-echo)
-          (font-lock-syntactic-face-function
-           . sk-font-lock-syntactic-face-function)))
+  (setq-local font-lock-multiline t)
+  (setq-local font-lock-defaults
+              '(sk-mode-font-lock-keywords
+                nil nil
+                (("+-*/.<>=!?$%_&~^:@" . "w"))
+                nil
+                (font-lock-mark-block-function . mark-defun)
+                (font-lock-extra-managed-props help-echo)
+                (font-lock-syntactic-face-function
+                 . sk-font-lock-syntactic-face-function)))
   (sk--put-indentation-properties))
 
 (defun sk--find-stack-yaml (dir)
@@ -438,16 +480,16 @@ to the newly created inferior sk buffer."
    (list (if current-prefix-arg
              (read-string "Run sk: " inferior-lisp-program)
            inferior-lisp-program)))
-  (if (not (comint-check-proc "*inferior-lisp*"))
+  (if (not (comint-check-proc "*sk*"))
       (let ((cmdlist (split-string cmd)))
         (set-buffer (apply #'make-comint
-                           "inferior-lisp"
+                           "sk"
                            (car cmdlist)
                            nil
                            (cdr cmdlist)))
         (inferior-lisp-mode)))
-  (setq inferior-lisp-buffer "*inferior-lisp*")
-  (pop-to-buffer "*inferior-lisp*"))
+  (setq inferior-lisp-buffer "*sk*")
+  (pop-to-buffer "*sk*"))
 
 (defun run-sk ()
   "Run sk REPL."
@@ -513,7 +555,7 @@ to the newly created inferior sk buffer."
       (bind "C-x C-e" 'lisp-eval-last-sexp)
       map)))
 
-(put :docn 'doc-string-elt 1)
+(put :doc 'doc-string-elt 1)
 (put :docp 'doc-string-elt 1)
 (put :dock 'doc-string-elt 2)
 (put :dh1 'doc-string-elt 1)
@@ -523,8 +565,9 @@ to the newly created inferior sk buffer."
 
 (put 'define-macro 'doc-string-elt 2)
 (put (intern "define-macro'") 'doc-string-elt 2)
-(put (intern "defmacro-m'") 'doc-string-elt 2)
 (put 'defmacro 'doc-string-elt 2)
+(put 'defmacro-m 'doc-string-elt 2)
+(put (intern "defmacro-m'") 'doc-string-elt 2)
 (put 'defn 'doc-string-elt 2)
 
 ;;;###autoload
