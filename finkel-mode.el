@@ -343,7 +343,6 @@ Lisp font lock syntactic face function."
 
 (defun finkel--mode-variables ()
   "Initialize finkel-mode variables."
-
   (setq-local comment-start ";")
   (setq-local comment-start-skip ";+ *")
   (setq-local comment-add 1)
@@ -368,22 +367,30 @@ Lisp font lock syntactic face function."
                  . finkel-font-lock-syntactic-face-function)))
   (finkel--put-indentation-properties))
 
-(defun finkel--find-stack-yaml (dir)
-  "Find stack YAML file.
-Recursively search for stack YAML file in DIR, with going one
-directory above at each time until root directory."
-  (let ((yaml-file (concat (file-name-as-directory dir)
-                           "stack.yaml")))
+(defun finkel--find-config-file (file dir)
+  "Find configuration file.
+Recursively search for file FILE in DIR, with going one directory
+above at each time until root directory."
+  (let ((config-file (concat (file-name-as-directory dir)
+                             file)))
     (cond
-     ((file-exists-p yaml-file) yaml-file)
+     ((file-exists-p config-file) config-file)
      ((equal dir (expand-file-name "/")) nil)
-     (t (finkel--find-stack-yaml
+     (t (finkel--find-config-file
+         file
          (expand-file-name
           (concat (file-name-as-directory dir) "..")))))))
 
 (defun finkel--find-default-stack-yaml ()
   "Find default stack yaml file, or return nil when not found."
-  (finkel--find-stack-yaml
+  (finkel--find-config-file
+   "stack.yaml"
+   (file-name-directory (or (buffer-file-name) "/"))))
+
+(defun finkel--find-default-cabal-project ()
+  "Find default cabal.project file, or return nil when not found."
+  (finkel--find-config-file
+   "cabal.project"
    (file-name-directory (or (buffer-file-name) "/"))))
 
 (defun finkel--read-port-number ()
@@ -411,9 +418,14 @@ directory above at each time until root directory."
 
 (defun finkel--prompt-for-cabal-v2-exec ()
   "Prompt and construct command string to run finkel with cabal v2-exec."
-  (print "Not yet implemented")
-  (let ((port-number (finkel--read-port-number)))
-    (concat "cabal v2-exec -- "
+  (let* ((project-file
+          (read-file-name "cabal.project file: " nil nil t
+                          (or (finkel--find-default-cabal-project) nil)))
+         (project-option (if project-file
+                             (concat "--project-file=" project-file)
+                           ""))
+         (port-number (finkel--read-port-number)))
+    (concat "cabal " project-option " v2-exec -- "
             finkel-mode-inferior-lisp-command " repl --listen=" port-number
             " +RTS " finkel-repl-default-rts-option)))
 
@@ -437,7 +449,7 @@ directory above at each time until root directory."
   (setq finkel-repl-con
         (make-network-process
          :name "finkel"
-         :buffer nil ;; "*ski*"
+         :buffer nil
          :host 'local
          :service port
          :nowait nil
@@ -503,13 +515,13 @@ to the newly created inferior finkel buffer."
 (defun run-finkel ()
   "Run finkel REPL."
   (interactive)
-  (let* ((use-stack (y-or-n-p "Use stack? "))
-         (cmd (if use-stack
-                  (finkel--prompt-for-stack-exec)
-                (let* ((use-cabal-v2 (y-or-n-p "Use cabal v2-exec? ")))
-                  (if use-cabal-v2
-                      (finkel--prompt-for-cabal-v2-exec)
-                      (concat inferior-lisp-program " repl"))))))
+  (let* ((cmd (cond
+               ((y-or-n-p "Use stack? ")
+                (finkel--prompt-for-stack-exec))
+               ((y-or-n-p "Use cabal v2-exec? ")
+                (finkel--prompt-for-cabal-v2-exec))
+               (t
+                (concat inferior-lisp-program " repl")))))
     (inferior-finkel cmd)
     ;; Wait for 1 second, until finkel REPL process been launched. Better to
     ;; detect process startup with comint.
