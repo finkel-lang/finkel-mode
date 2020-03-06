@@ -1,4 +1,4 @@
-sk-mode
-=======
+finkel-mode
+===========
 
-Emacs major mode for editing SK source code text.
+Emacs major mode for editing Finkel source code text.

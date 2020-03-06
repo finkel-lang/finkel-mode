@@ -1,6 +1,6 @@
-;;; sk-mode.el --- Major mode to edit SK-lang source.
+;;; finkel-mode.el --- Major mode to edit Finkel lang source.
 
-;; CopyRight (C) 2017 8c6794b6
+;; CopyRight (C) 2017-2020 8c6794b6
 
 ;; Author: 8c6794b6
 ;; Version: 0.0.1
@@ -25,7 +25,7 @@
 
 ;;; Commentary:
 
-;; This file contains `sk-mode', a major mode to edit SK-lang source
+;; This file contains `finkel-mode', a major mode to edit Finkel-lang source
 ;; code with basic REPL interaction support.
 
 ;;; Code:
@@ -38,66 +38,66 @@
 
 ;;; Groups and variables
 
-(defgroup sk nil
-  "Editing SK code."
-  :prefix "sk-"
+(defgroup finkel nil
+  "Editing Finkel code."
+  :prefix "finkel-"
   :group 'lisp)
 
-(defcustom sk-mode-inferior-lisp-command "sk"
+(defcustom finkel-mode-inferior-lisp-command "finkel"
   "The command used by `inferior-lisp-program'."
   :type 'string
-  :group 'sk)
+  :group 'finkel)
 
-(defcustom sk-mode-hook nil
-  "Hook run when entering SK mode."
+(defcustom finkel-mode-hook nil
+  "Hook run when entering Finkel mode."
   :type 'hook
-  :group 'sk)
+  :group 'finkel)
 
-(defcustom sk-repl-default-port 50321
-  "Default port of SK repl server to connect."
-  :group 'sk
+(defcustom finkel-repl-default-port 50321
+  "Default port of Finkel repl server to connect."
+  :group 'finkel
   :type 'integer)
 
-(defcustom sk-repl-default-rts-option
+(defcustom finkel-repl-default-rts-option
   "-A16m -c -N -I0"
-  "Default RTS option of SK REPL."
-  :group 'sk
+  "Default RTS option of Finkel REPL."
+  :group 'finkel
   :type 'string)
 
-(defvar sk-repl-con nil
-  "Connection to sk REPL.")
+(defvar finkel-repl-con nil
+  "Connection to finkel REPL.")
 
-(defvar sk-repl-con-port nil
+(defvar finkel-repl-con-port nil
   "Port number string of REPL server.")
 
-(defvar sk-repl-port-history nil
+(defvar finkel-repl-port-history nil
   "History of port used for connection.")
 
-(defvar sk-repl-yaml-history nil
+(defvar finkel-repl-yaml-history nil
   "History of YAML file used for stack.")
 
 
 ;;; Font lock keywords
 
 (eval-and-compile
-  (defconst sk-mode-symbol-regexp
+  (defconst finkel-mode-symbol-regexp
     ;; Using single quote is fine if it's not at the head position.
     (let ((re "\\sw\\|\\s_\\|\\\\."))
       (concat "\\(?:" re "\\)\\(?:" re "\\|'\\)*"))))
 
-(defconst sk-mode-font-lock-keywords-1
+(defconst finkel-mode-font-lock-keywords-1
   (eval-when-compile
     `(
       ;; Keywords.
       (,(concat
          "(" (regexp-opt
-              '(;; SK special forms.
+              '(;; Finkel special forms.
                 ":begin" ":eval-when-compile"
                 ":quote" ":quasiquote" ":require"
                 ":unquote" ":unquote-splice"
                 ":with-macro"
 
-                ;; SK core macros.
+                ;; Finkel core macros.
                 "cond" "defmacro" "defmacro'" "defmacro-m" "eval-when"
                 "define-macro" "define-macro'" "eval-and-compile"
                 "macrolet" "macrolet-m" "let-macro"
@@ -107,7 +107,7 @@
 
                 ;; Haskell keywords, without `else', `in', and `then',
                 ;; since those are implicitly expressed with
-                ;; S-expressions and won't appear in SK codes.
+                ;; S-expressions and won't appear in Finkel codes.
                 "case" "class" "data" "default" "deriving" "do"
                 "foreign" "if" "import" "infix" "infixl" "infixr"
                 "instance" "let" "module" "newtype" "type" "where"
@@ -169,7 +169,7 @@
                    "defn" "defn'" "defdo")
                  t)
          "\\)\\s-+(?\\("
-         sk-mode-symbol-regexp
+         finkel-mode-symbol-regexp
          "\\)")
        (1 font-lock-keyword-face)
        (3 font-lock-function-name-face))
@@ -183,12 +183,12 @@
       (,(concat "(\\(def[^ \r\n\t]*\\)"
                 "\\>"
                 "[ \r\n\t]*"
-                (concat "\\(" sk-mode-symbol-regexp "\\)?"))
+                (concat "\\(" finkel-mode-symbol-regexp "\\)?"))
        (1 font-lock-keyword-face)
        (2 font-lock-function-name-face nil t))
 
       ;; Top level type signature.
-      (,(concat "^(\\(=\\|::\\)\\ +(?\\(" sk-mode-symbol-regexp "\\)")
+      (,(concat "^(\\(=\\|::\\)\\ +(?\\(" finkel-mode-symbol-regexp "\\)")
        (1 font-lock-keyword-face)
        (2 font-lock-function-name-face prepend))
 
@@ -207,14 +207,14 @@
       ;; Errors.
       ("\\_<\\(error\\|undefined\\)\\_>"
        (1 font-lock-warning-face))))
-  "Expressions to highlight in SK mode.")
+  "Expressions to highlight in Finkel mode.")
 
-(defvar sk-mode-font-lock-keywords sk-mode-font-lock-keywords-1
-  "Default expressions to highlight in SK mode.")
+(defvar finkel-mode-font-lock-keywords finkel-mode-font-lock-keywords-1
+  "Default expressions to highlight in Finkel mode.")
 
-(defvar sk-mode-syntax-table
+(defvar finkel-mode-syntax-table
   ;; The character `|' in copied syntax table behaves differently than
-  ;; typical Lisp, which is used for block comments and guards in SK.
+  ;; typical Lisp, which is used for block comments and guards in Finkel.
   (let ((table (copy-syntax-table lisp-mode-syntax-table)))
     (modify-syntax-entry ?\{ "(}  " table)
     (modify-syntax-entry ?\} "){  " table)
@@ -228,7 +228,7 @@
     (modify-syntax-entry ?\; "< 23" table)
     table))
 
-(defvar sk-imenu-generic-expression
+(defvar finkel-imenu-generic-expression
   (list
    (list
     nil
@@ -236,10 +236,10 @@
      (concat "^\\s-*("
              (eval-when-compile
                (regexp-opt
-                '("::" "defn" "defn!" "defdo" "defmacro" "defmacro!"
-                  "defmacro*" "defmacro*!" "define-macro")
+                '("::" "defn" "defn'" "defdo" "defmacro" "defmacro'"
+                  "defmacro-m" "defmacro-m'" "define-macro")
                 t))
-             "\\s-+(?\\(" sk-mode-symbol-regexp "\\)"))
+             "\\s-+(?\\(" finkel-mode-symbol-regexp "\\)"))
     2)
    (list
     (purecopy "Types")
@@ -249,16 +249,16 @@
                (regexp-opt
                 '("data" "newtype" "type")
                 t))
-             "\\s-+(?\\([A-Z]+" sk-mode-symbol-regexp "\\)"))
+             "\\s-+(?\\([A-Z]+" finkel-mode-symbol-regexp "\\)"))
     2)
    (list
     (purecopy "Classes")
     (purecopy (concat "^\\s-*(class\\s-+(\\([A-Z]+"
-                      sk-mode-symbol-regexp
+                      finkel-mode-symbol-regexp
                       "\\)"))
     1)))
 
-(defun sk-indent-function (indent-point state)
+(defun finkel-indent-function (indent-point state)
   "Simple wrapper function over `common-lisp-indent-function'.
 Could be done with advice.  See the function
 `lisp-indent-function' for description of INDENT-POINT and
@@ -280,8 +280,8 @@ STATE."
 
 ;;; XXX: Overriding settings for Common Lisp. Indentation for `do' and
 ;;; `case' conflicts with Common Lisp. Move the indentation rule to
-;;; `sk-indent-function'.
-(defun sk--put-indentation-properties ()
+;;; `finkel-indent-function'.
+(defun finkel--put-indentation-properties ()
   "Set properties for indentation."
   ;;; May worth moving the association to customizable variable.
   (let ((l `((= . (0 &body))
@@ -304,8 +304,6 @@ STATE."
              (do . 0)
              (eval-and-compile . 0)
              (eval-when-compile . 0)
-             ;; (fn . (0 &body))
-             ;; (fn . 0)
              (forall . (0 &body))
              (foreign . 3)
              (instance . 1)
@@ -329,7 +327,7 @@ STATE."
                  (get v 'common-lisp-indent-function)
                v))))))
 
-(defun sk-font-lock-syntactic-face-function (state)
+(defun finkel-font-lock-syntactic-face-function (state)
   "Return syntactic face function for the position represented by STATE.
 STATE is a `parse-partial-sexp' state, and the returned function is the
 Lisp font lock syntactic face function."
@@ -343,34 +341,34 @@ Lisp font lock syntactic face function."
             font-lock-string-face)))
     font-lock-comment-face))
 
-(defun sk--mode-variables ()
-  "Initialize sk-mode variables."
+(defun finkel--mode-variables ()
+  "Initialize finkel-mode variables."
 
   (setq-local comment-start ";")
   (setq-local comment-start-skip ";+ *")
   (setq-local comment-add 1)
   (setq-local comment-use-syntax t)
   (setq-local fill-paragraph-function 'lisp-fill-paragraph)
-  (setq-local imenu-generic-expression sk-imenu-generic-expression)
+  (setq-local imenu-generic-expression finkel-imenu-generic-expression)
   (setq-local indent-line-function 'lisp-indent-line)
   (setq-local indent-tabs-mode nil)
-  (setq-local inferior-lisp-program sk-mode-inferior-lisp-command)
+  (setq-local inferior-lisp-program finkel-mode-inferior-lisp-command)
   (setq-local inferior-lisp-load-command ",load \"%s\"\n")
   (setq-local lisp-describe-sym-command ",info %s\n")
-  (setq-local lisp-indent-function 'sk-indent-function)
+  (setq-local lisp-indent-function 'finkel-indent-function)
   (setq-local font-lock-multiline t)
   (setq-local font-lock-defaults
-              '(sk-mode-font-lock-keywords
+              '(finkel-mode-font-lock-keywords
                 nil nil
                 (("+-*/.<>=!?$%_&~^:@" . "w"))
                 nil
                 (font-lock-mark-block-function . mark-defun)
                 (font-lock-extra-managed-props help-echo)
                 (font-lock-syntactic-face-function
-                 . sk-font-lock-syntactic-face-function)))
-  (sk--put-indentation-properties))
+                 . finkel-font-lock-syntactic-face-function)))
+  (finkel--put-indentation-properties))
 
-(defun sk--find-stack-yaml (dir)
+(defun finkel--find-stack-yaml (dir)
   "Find stack YAML file.
 Recursively search for stack YAML file in DIR, with going one
 directory above at each time until root directory."
@@ -379,68 +377,79 @@ directory above at each time until root directory."
     (cond
      ((file-exists-p yaml-file) yaml-file)
      ((equal dir (expand-file-name "/")) nil)
-     (t (sk--find-stack-yaml
+     (t (finkel--find-stack-yaml
          (expand-file-name
           (concat (file-name-as-directory dir) "..")))))))
 
-(defun sk--find-default-stack-yaml ()
+(defun finkel--find-default-stack-yaml ()
   "Find default stack yaml file, or return nil when not found."
-  (sk--find-stack-yaml
+  (finkel--find-stack-yaml
    (file-name-directory (or (buffer-file-name) "/"))))
 
-(defun sk--prompt-for-stack-exec-sk ()
-  "Prompt and construct command string to run sk with stack."
+(defun finkel--read-port-number ()
+  "Prompt for port and read a number."
+  (read-string
+   "Port: "
+   (number-to-string finkel-repl-default-port)
+   'finkel-repl-port-history
+   (number-to-string finkel-repl-default-port)))
+
+(defun finkel--prompt-for-stack-exec ()
+  "Prompt and construct command string to run finkel with stack."
   (let* ((yaml-file
           (read-file-name "Yaml file: " nil nil t
-                          (or (sk--find-default-stack-yaml) nil)))
+                          (or (finkel--find-default-stack-yaml) nil)))
          (yaml-option
           (if yaml-file
               (concat "--stack-yaml=" yaml-file)
             ""))
-         (port-number
-          (read-string
-           "Port: "
-           (number-to-string sk-repl-default-port)
-           'sk-repl-port-history
-           (number-to-string sk-repl-default-port))))
-    (setq sk-repl-con-port port-number)
-    (concat "stack exec " yaml-option
-            " -- sk repl --listen=" port-number
-            " +RTS " sk-repl-default-rts-option)))
+         (port-number (finkel--read-port-number)))
+    (setq finkel-repl-con-port port-number)
+    (concat "stack exec " yaml-option " -- "
+            finkel-mode-inferior-lisp-command " repl --listen=" port-number
+            " +RTS " finkel-repl-default-rts-option)))
 
-(defun sk--connection-filter (process msg)
+(defun finkel--prompt-for-cabal-v2-exec ()
+  "Prompt and construct command string to run finkel with cabal v2-exec."
+  (print "Not yet implemented")
+  (let ((port-number (finkel--read-port-number)))
+    (concat "cabal v2-exec -- "
+            finkel-mode-inferior-lisp-command " repl --listen=" port-number
+            " +RTS " finkel-repl-default-rts-option)))
+
+(defun finkel--connection-filter (process msg)
   "Filter to read from PROCESS and display the MSG."
   (message "=> %s" msg))
 
-(defun sk--connection-sentinel (process msg)
+(defun finkel--connection-sentinel (process msg)
   "Sentinel function for PROCESS with MSG."
   (cond
    ((string= "open\n" msg)
-    (message "sk: connected to server."))
+    (message "finkel: connected to server."))
    ((string-prefix-p "failed" msg)
-    (message "sk %s: failed: %s" process msg))
+    (message "finkel %s: failed: %s" process msg))
    (t
-    (message "sk: %s" (replace-regexp-in-string "\n" " " msg)))))
+    (message "finkel: %s" (replace-regexp-in-string "\n" " " msg)))))
 
-(defun sk--make-connection (port)
+(defun finkel--make-connection (port)
   "Make and set network connection to REPL server with PORT."
-  (setq sk-repl-con-port port)
-  (setq sk-repl-con
+  (setq finkel-repl-con-port port)
+  (setq finkel-repl-con
         (make-network-process
-         :name "sk"
+         :name "finkel"
          :buffer nil ;; "*ski*"
          :host 'local
          :service port
          :nowait nil
-         :filter 'sk--connection-filter
+         :filter 'finkel--connection-filter
          :filter-multibyte t
-         :sentinel 'sk--connection-sentinel)))
+         :sentinel 'finkel--connection-sentinel)))
 
-(defun sk--send-string (str)
+(defun finkel--send-string (str)
   "Send STR to REPL server."
-  (process-send-string sk-repl-con str))
+  (process-send-string finkel-repl-con str))
 
-(defun sk--defun-at-point ()
+(defun finkel--defun-at-point ()
   "Get list of start point and end point of current defun."
   (save-excursion
     (save-match-data
@@ -452,87 +461,90 @@ directory above at each time until root directory."
 
 ;;; Interactive functions
 
-(defun sk-repl-connect ()
+(defun finkel-repl-connect ()
   "Show prompt for connecting to server."
   (interactive)
-  (if (and (not (equal nil sk-repl-con))
-           (process-live-p sk-repl-con))
+  (if (and (not (equal nil finkel-repl-con))
+           (process-live-p finkel-repl-con))
       (message "Connection exists.")
     (let ((port (read-string
                  (concat "Port (default="
-                         (number-to-string sk-repl-default-port)
+                         (number-to-string finkel-repl-default-port)
                          "): ")
-                 nil 'sk-repl-port-history
-                 (number-to-string sk-repl-default-port)
+                 nil 'finkel-repl-port-history
+                 (number-to-string finkel-repl-default-port)
                  nil)))
-      (sk--make-connection port))))
+      (finkel--make-connection port))))
 
-(defun sk-repl-disconnect ()
-  "Disconnect current SK REPL server connection."
+(defun finkel-repl-disconnect ()
+  "Disconnect current Finkel REPL server connection."
   (interactive)
-  (delete-process sk-repl-con))
+  (delete-process finkel-repl-con))
 
-(defun inferior-sk (cmd)
-  "Run CMD to start sk REPL.
+(defun inferior-finkel (cmd)
+  "Run CMD to start finkel REPL.
 Set `inferior-lisp-buffer' with comint on successful start, and pop
-to the newly created inferior sk buffer."
+to the newly created inferior finkel buffer."
   (interactive
    (list (if current-prefix-arg
-             (read-string "Run sk: " inferior-lisp-program)
+             (read-string "Run finkel: " inferior-lisp-program)
            inferior-lisp-program)))
-  (if (not (comint-check-proc "*sk*"))
+  (if (not (comint-check-proc "*finkel*"))
       (let ((cmdlist (split-string cmd)))
         (set-buffer (apply #'make-comint
-                           "sk"
+                           "finkel"
                            (car cmdlist)
                            nil
                            (cdr cmdlist)))
         (inferior-lisp-mode)))
-  (setq inferior-lisp-buffer "*sk*")
-  (pop-to-buffer "*sk*"))
+  (setq inferior-lisp-buffer "*finkel*")
+  (pop-to-buffer "*finkel*"))
 
-(defun run-sk ()
-  "Run sk REPL."
+(defun run-finkel ()
+  "Run finkel REPL."
   (interactive)
   (let* ((use-stack (y-or-n-p "Use stack? "))
          (cmd (if use-stack
-                  (sk--prompt-for-stack-exec-sk)
-                (concat inferior-lisp-program " repl"))))
-    (inferior-sk cmd)
-    ;; Wait for 1 second, until sk REPL process been launched. Better to
+                  (finkel--prompt-for-stack-exec)
+                (let* ((use-cabal-v2 (y-or-n-p "Use cabal v2-exec? ")))
+                  (if use-cabal-v2
+                      (finkel--prompt-for-cabal-v2-exec)
+                      (concat inferior-lisp-program " repl"))))))
+    (inferior-finkel cmd)
+    ;; Wait for 1 second, until finkel REPL process been launched. Better to
     ;; detect process startup with comint.
     (sleep-for 1)
-    (sk--make-connection sk-repl-con-port)))
+    (finkel--make-connection finkel-repl-con-port)))
 
-(defun switch-to-sk ()
-  "Switch to sk REPL buffer, or start one if not exist."
+(defun switch-to-finkel ()
+  "Switch to finkel REPL buffer, or start one if not exist."
   (interactive)
   (if (get-buffer-process inferior-lisp-buffer)
       (let ((pop-up-frames
              (or pop-up-frames
                  (get-buffer-window inferior-lisp-buffer t))))
         (pop-to-buffer inferior-lisp-buffer))
-    (run-sk)))
+    (run-finkel)))
 
-(defun sk-send-input ()
+(defun finkel-send-input ()
   "Prompt for input and send to REPL connection."
   (interactive)
-  (sk--send-string
+  (finkel--send-string
    (read-string "Eval: " nil 'ski-input-history "" nil)))
 
-(defun sk-send-form-at-point ()
-  "Send outermost form at point to sk connection."
+(defun finkel-send-form-at-point ()
+  "Send outermost form at point to finkel connection."
   (interactive)
-  (let* ((points (sk--defun-at-point))
+  (let* ((points (finkel--defun-at-point))
          (start (car points))
          (end (cadr points)))
     (let ((overlay (make-overlay start end)))
       (overlay-put overlay 'face 'secondary-selection)
       (run-with-timer 0.2 nil 'delete-overlay overlay))
-    (sk--send-string
+    (finkel--send-string
      (buffer-substring-no-properties start end))))
 
-(defun sk-load-current-buffer ()
+(defun finkel-load-current-buffer ()
   "Load current buffer to REPL."
   (interactive)
   (lisp-load-file (buffer-file-name)))
@@ -540,18 +552,18 @@ to the newly created inferior sk buffer."
 
 ;;; Mode definition
 
-(defvar sk-mode-map
+(defvar finkel-mode-map
   (let ((map (make-sparse-keymap)))
     (cl-flet ((bind (lambda (km fnsym)
                       (define-key map (kbd km) fnsym))))
       (bind "C-M-x" 'lisp-eval-defun)
-      (bind "C-c C-c" 'sk-send-form-at-point)
+      (bind "C-c C-c" 'finkel-send-form-at-point)
       (bind "C-c C-d" 'lisp-describe-sym)
-      (bind "C-c C-e" 'sk-send-input)
-      (bind "C-c C-k" 'sk-load-current-buffer)
+      (bind "C-c C-e" 'finkel-send-input)
+      (bind "C-c C-k" 'finkel-load-current-buffer)
       (bind "C-c C-l" 'lisp-load-file)
-      (bind "C-c C-z" 'switch-to-sk)
-      (bind "C-c M-j" 'sk-repl-connect)
+      (bind "C-c C-z" 'switch-to-finkel)
+      (bind "C-c M-j" 'finkel-repl-connect)
       (bind "C-x C-e" 'lisp-eval-last-sexp)
       map)))
 
@@ -571,16 +583,17 @@ to the newly created inferior sk buffer."
 (put 'defn 'doc-string-elt 2)
 
 ;;;###autoload
-(define-derived-mode sk-mode prog-mode "SK"
-  "Major mode for ediging SK code.
-\\{sk-mode-map}"
-  (sk--mode-variables))
+(define-derived-mode finkel-mode prog-mode "Finkel"
+  "Major mode for ediging Finkel code.
+\\{finkel-mode-map}"
+  (finkel--mode-variables))
 
 ;;;###autoload
 (progn
-  (add-to-list 'auto-mode-alist '("\\.sk\\'" . sk-mode))
-  (add-to-list 'interpreter-mode-alist '("sk" . sk-mode)))
+  (add-to-list 'auto-mode-alist '("\\.fnk\\'" . finkel-mode))
+  (add-to-list 'interpreter-mode-alist '("fnk" . finkel-mode)))
 
-(provide 'sk-mode)
 
-;;; sk-mode.el ends here
+(provide 'finkel-mode)
+
+;;; finkel-mode.el ends here
