@@ -1,5 +1,7 @@
 *~
 *.elc
 *.o
-
+codecov.json
 TAGS
+
+.cask
