@@ -1,4 +1,4 @@
-;;; finkel-mode.el --- Major mode to edit Finkel lang source.
+;;; finkel-mode.el --- Major mode for Finkel -*-lexical-binding:t-*-
 
 ;; CopyRight (C) 2017-2020 8c6794b6
 
@@ -25,15 +25,16 @@
 
 ;;; Commentary:
 
-;; This file contains `finkel-mode', a major mode to edit Finkel-lang source
-;; code with basic REPL interaction support.
+;; This file contains `finkel-mode', a major mode to edit Finkel programming
+;; language source codes with basic REPL interaction support.
 
 ;;; Code:
 
 (require 'cl-lib)
-(require 'cl-indent)
-(require 'lisp-mode)
+(require 'font-lock)
+(require 'imenu)
 (require 'inf-lisp)
+(require 'lisp-mode)
 
 
 ;;; Groups and variables
@@ -43,7 +44,7 @@
   :prefix "finkel-"
   :group 'lisp)
 
-(defcustom finkel-mode-inferior-lisp-command "finkel"
+(defcustom finkel-mode-inferior-lisp-program "finkel"
   "The command used by `inferior-lisp-program'."
   :type 'string
   :group 'finkel)
@@ -77,7 +78,7 @@
   "History of YAML file used for stack.")
 
 
-;;; Font lock keywords
+;;; Font lock
 
 (eval-and-compile
   (defconst finkel-mode-symbol-regexp
@@ -98,12 +99,9 @@
                 ":with-macro"
 
                 ;; Finkel core macros.
-                "cond" "defmacro" "defmacro'" "defmacro-m" "eval-when"
-                "define-macro" "define-macro'" "eval-and-compile"
-                "macrolet" "macrolet-m" "let-macro"
-                "match"
-
-                "letp" "letv" "lefn" "fn"
+                "cond" "defmacro" "defmacro'" "defmacro-m"
+                "eval-when" "eval-and-compile"
+                "macrolet" "macrolet-m"
 
                 ;; Haskell keywords, without `else', `in', and `then',
                 ;; since those are implicitly expressed with
@@ -113,29 +111,43 @@
                 "instance" "let" "module" "newtype" "type" "where"
 
                 ;; GHC specific
-                "data family" "data instance"
-                "forall"
-                "newtype instance"
+                "data family" "data instance" "forall" "newtype instance"
                 "type family" "type instance")
               t)
          "\\>")
        . 1)
 
-      ;; ``import' keyword. ... seems inefficient.
-      ;; ("(\\(import\\W+\\(qualified\\W+\\)?\\)\\(\\(\\w+\\|\\.\\)+\\(\\(\\W+as\\W+\\)?\\)\\(\\(\\w+\\)+\\)?\\(\\(\\W+hiding\\)?\\)\\).*)"
-      ;;  (1 font-lock-keyword-face)
-      ;;  (4 font-lock-type-face)
-      ;;  (5 font-lock-keyword-face)
-      ;;  (9 font-lock-keyword-face))
+      ;; defmodule and its internal
+
+      ("^(\\(defmodule\\)\\s-+"
+       (1 font-lock-keyword-face)
+       ("\\(export\\|require-import\\|require\\)"
+        (save-excursion (up-list) (point))
+        (re-search-backward "defmodule")
+        (0 font-lock-keyword-face)))
+
+      ("^\\s-*(\\(import\\)"
+       (1 font-lock-keyword-face)
+       ("\\<\\(qualified\\|as\\|hiding\\)\\>"
+        (save-excursion (up-list) (point))
+        (re-search-backward "import")
+        (0 font-lock-keyword-face)))
+
+      ;; FFI import and export
+      ("^(\\(foreign\\)\\s-+"
+       (1 font-lock-keyword-face)
+       ("\\(import\\|export\\|ccall\\|unsafe\\|safe\\)"
+        (save-excursion (up-list) (point))
+        (re-search-backward "foreign")
+        (0 font-lock-keyword-face)))
 
       ;; Pragmas.
-      ;;
-      ;; XXX: Move the cursor to matching closing parenthesis, otherwise
-      ;; match will close on e.g., a closing parenthesis used in type
-      ;; signature of SPECIALIZE pragma.
-      ;;
-      ("#p([^)]*"
-       (0 font-lock-preprocessor-face))
+      ("#p("
+       (0 font-lock-preprocessor-face)
+       ("[^ \n]+"
+        (save-excursion (up-list) (point))
+        (re-search-backward "#p(")
+        (0 font-lock-preprocessor-face)))
 
       ("\\_<\\(:doc[$\\^]?\\|:dh[1234]\\)\\_>"
        (0 font-lock-variable-name-face))
@@ -165,7 +177,6 @@
          "(\\(" (regexp-opt
                  '("define-macro" "define-macro'"
                    "defmacro" "defmacro'" "defmacro-m" "defmacro-m'"
-                   "defmodule"
                    "defn" "defn'" "defdo")
                  t)
          "\\)\\s-+(?\\("
@@ -175,7 +186,7 @@
        (3 font-lock-function-name-face))
 
       ;; Function definition (defn style)
-      (,(concat "(\\(defn\\)\\s-+(::\\s-+\\(\\sw+\\)")
+      (,(concat "(\\(defn\\|defdo\\)\\s-+(::\\s-+\\(\\sw+\\)")
        (1 font-lock-keyword-face)
        (2 font-lock-function-name-face))
 
@@ -196,14 +207,6 @@
       ("`\\([^ ]+\\)'"
        (1 font-lock-constant-face prepend))
 
-      ;; ;; Block comment.
-      ;; ("\\(#;.*;#\\)"
-      ;;  (1 font-lock-comment-face))
-
-      ;; Block comment start
-      ;; ("#;"
-      ;;  (1 font-lock-comment-face))
-
       ;; Errors.
       ("\\_<\\(error\\|undefined\\)\\_>"
        (1 font-lock-warning-face))))
@@ -212,9 +215,27 @@
 (defvar finkel-mode-font-lock-keywords finkel-mode-font-lock-keywords-1
   "Default expressions to highlight in Finkel mode.")
 
+(defun finkel-font-lock-syntactic-face-function (state)
+  "Return syntactic face function for the position represented by STATE.
+STATE is a `parse-partial-sexp' state, and the returned function is the
+Lisp font lock syntactic face function."
+  (if (nth 3 state)
+      ;; This might be a (doc)string or a |...| symbol.
+      (let ((startpos (nth 8 state)))
+        (let ((listbeg (nth 1 state)))
+          (if (or (lisp-string-in-doc-position-p listbeg startpos)
+                  (lisp-string-after-doc-keyword-p listbeg startpos))
+              font-lock-doc-face
+            font-lock-string-face)))
+    font-lock-comment-face))
+
+
+;;; Syntax table
+
 (defvar finkel-mode-syntax-table
   ;; The character `|' in copied syntax table behaves differently than
-  ;; typical Lisp, which is used for block comments and guards in Finkel.
+  ;; typical Lisp, which is used for block comments in Lisp but guards
+  ;; in Finkel.
   (let ((table (copy-syntax-table lisp-mode-syntax-table)))
     (modify-syntax-entry ?\{ "(}  " table)
     (modify-syntax-entry ?\} "){  " table)
@@ -228,35 +249,8 @@
     (modify-syntax-entry ?\; "< 23" table)
     table))
 
-(defvar finkel-imenu-generic-expression
-  (list
-   (list
-    nil
-    (purecopy
-     (concat "^\\s-*("
-             (eval-when-compile
-               (regexp-opt
-                '("::" "defn" "defn'" "defdo" "defmacro" "defmacro'"
-                  "defmacro-m" "defmacro-m'" "define-macro")
-                t))
-             "\\s-+(?\\(" finkel-mode-symbol-regexp "\\)"))
-    2)
-   (list
-    (purecopy "Types")
-    (purecopy
-     (concat "^\\s-*("
-             (eval-when-compile
-               (regexp-opt
-                '("data" "newtype" "type")
-                t))
-             "\\s-+(?\\([A-Z]+" finkel-mode-symbol-regexp "\\)"))
-    2)
-   (list
-    (purecopy "Classes")
-    (purecopy (concat "^\\s-*(class\\s-+(\\([A-Z]+"
-                      finkel-mode-symbol-regexp
-                      "\\)"))
-    1)))
+
+;;; Indent
 
 (defun finkel-indent-function (indent-point state)
   "Simple wrapper function over `common-lisp-indent-function'.
@@ -278,8 +272,8 @@ STATE."
      ;; Delegating to `common-lisp-indent-function'.
      (t (common-lisp-indent-function indent-point state)))))
 
-;;; XXX: Overriding settings for Common Lisp. Indentation for `do' and
-;;; `case' conflicts with Common Lisp. Move the indentation rule to
+;;; XXX: Overriding settings for Common Lisp. Indentation for `do' and `case'
+;;; conflicts with Common Lisp. Move the indentation rule to
 ;;; `finkel-indent-function'.
 (defun finkel--put-indentation-properties ()
   "Set properties for indentation."
@@ -299,7 +293,6 @@ STATE."
              (defmacro-m . defmacro)
              (,(intern "defmacro'") . defmacro)
              (,(intern "defmacro-m'") . defmacro)
-             (describe . (1 &body))
              (defmodule . 1)
              (do . 0)
              (eval-and-compile . 0)
@@ -308,9 +301,6 @@ STATE."
              (foreign . 3)
              (instance . 1)
              (let-macro . macrolet)
-             (letp . let)
-             (letf . let)
-             (letv . let)
              (lefn . ((&whole 4 &rest (&whole 1 2 &lambda &body)) &body))
              (macrolet .
                ((&whole 4 &rest (&whole 1 4 &lambda &body)) &body))
@@ -327,47 +317,57 @@ STATE."
                  (get v 'common-lisp-indent-function)
                v))))))
 
-(defun finkel-font-lock-syntactic-face-function (state)
-  "Return syntactic face function for the position represented by STATE.
-STATE is a `parse-partial-sexp' state, and the returned function is the
-Lisp font lock syntactic face function."
-  (if (nth 3 state)
-      ;; This might be a (doc)string or a |...| symbol.
-      (let ((startpos (nth 8 state)))
-        (let ((listbeg (nth 1 state)))
-          (if (or (lisp-string-in-doc-position-p listbeg startpos)
-                  (lisp-string-after-doc-keyword-p listbeg startpos))
-              font-lock-doc-face
-            font-lock-string-face)))
-    font-lock-comment-face))
+
+;;; Imenu
 
-(defun finkel--mode-variables ()
-  "Initialize finkel-mode variables."
-  (setq-local comment-start ";")
-  (setq-local comment-start-skip ";+ *")
-  (setq-local comment-add 1)
-  (setq-local comment-use-syntax t)
-  (setq-local fill-paragraph-function 'lisp-fill-paragraph)
-  (setq-local imenu-generic-expression finkel-imenu-generic-expression)
-  (setq-local indent-line-function 'lisp-indent-line)
-  (setq-local indent-tabs-mode nil)
-  (setq-local inferior-lisp-program finkel-mode-inferior-lisp-command)
-  (setq-local inferior-lisp-load-command ",load \"%s\"\n")
-  (setq-local lisp-describe-sym-command ",info %s\n")
-  (setq-local lisp-indent-function 'finkel-indent-function)
-  (setq-local font-lock-multiline t)
-  (setq-local font-lock-defaults
-              '(finkel-mode-font-lock-keywords
-                nil nil
-                (("+-*/.<>=!?$%_&~^:@" . "w"))
-                nil
-                (font-lock-mark-block-function . mark-defun)
-                (font-lock-extra-managed-props help-echo)
-                (font-lock-syntactic-face-function
-                 . finkel-font-lock-syntactic-face-function)))
-  (finkel--put-indentation-properties))
+;;; XXX: Rewrite to work with `imenu-create-index-function' to create
+;;; index for top-level `eval-when's and `:begin'.
+(defvar finkel-imenu-generic-expression
+  (list
+   (list
+    (purecopy "Functions")
+    (purecopy
+     (concat "^("
+             (eval-when-compile
+               (regexp-opt '("defn" "defn'" "defdo")
+                           t))
+             "\\s-+\\(?:(\\s-*::\\s-+\\)?\\("
+             finkel-mode-symbol-regexp
+             "\\)\\s-+"))
+    2)
+   (list
+    (purecopy "Macros")
+    (purecopy
+     (concat "^("
+             (eval-when-compile
+               (regexp-opt
+                '("defmacro" "defmacro'" "defmacro-m" "defmacro-m'")
+                t))
+             "\\s-+(?\\(" finkel-mode-symbol-regexp "\\)"))
+    2)
+   (list
+    (purecopy "Types")
+    (purecopy
+     (concat "^("
+             (eval-when-compile
+               (regexp-opt
+                '("data" "newtype" "type")
+                t))
+             "\\s-+(?\\([A-Z]+" finkel-mode-symbol-regexp "\\)"))
+    2)
+   (list
+    (purecopy "Classes")
+    (purecopy (concat "^(class\\s-+(\\([A-Z]+"
+                      finkel-mode-symbol-regexp
+                      "\\)"))
+    1))
 
-(defun finkel--find-config-file (file dir)
+  "Expression for `imenu-generic-expression'.")
+
+
+;;; Inferior Finkel
+
+(defun finkel--search-file-upward (file dir)
   "Find configuration file.
 Recursively search for file FILE in DIR, with going one directory
 above at each time until root directory."
@@ -376,22 +376,16 @@ above at each time until root directory."
     (cond
      ((file-exists-p config-file) config-file)
      ((equal dir (expand-file-name "/")) nil)
-     (t (finkel--find-config-file
+     (t (finkel--search-file-upward
          file
          (expand-file-name
           (concat (file-name-as-directory dir) "..")))))))
 
-(defun finkel--find-default-stack-yaml ()
-  "Find default stack yaml file, or return nil when not found."
-  (finkel--find-config-file
-   "stack.yaml"
-   (file-name-directory (or (buffer-file-name) "/"))))
-
-(defun finkel--find-default-cabal-project ()
-  "Find default cabal.project file, or return nil when not found."
-  (finkel--find-config-file
-   "cabal.project"
-   (file-name-directory (or (buffer-file-name) "/"))))
+(defun finkel--find-config-file (file)
+  "Find configuration file named FILE."
+  (finkel--search-file-upward file
+                              (file-name-directory
+                               (or (buffer-file-name) "/"))))
 
 (defun finkel--read-port-number ()
   "Prompt for port and read a number."
@@ -405,7 +399,7 @@ above at each time until root directory."
   "Prompt and construct command string to run finkel with stack."
   (let* ((yaml-file
           (read-file-name "Yaml file: " nil nil t
-                          (or (finkel--find-default-stack-yaml) nil)))
+                          (finkel--find-config-file "stack.yaml")))
          (yaml-option
           (if yaml-file
               (concat "--stack-yaml=" yaml-file)
@@ -413,24 +407,27 @@ above at each time until root directory."
          (port-number (finkel--read-port-number)))
     (setq finkel-repl-con-port port-number)
     (concat "stack exec " yaml-option " -- "
-            finkel-mode-inferior-lisp-command " repl --listen=" port-number
+            finkel-mode-inferior-lisp-program " repl --listen=" port-number
             " +RTS " finkel-repl-default-rts-option)))
 
 (defun finkel--prompt-for-cabal-v2-exec ()
   "Prompt and construct command string to run finkel with cabal v2-exec."
   (let* ((project-file
           (read-file-name "cabal.project file: " nil nil t
-                          (or (finkel--find-default-cabal-project) nil)))
-         (project-option (if project-file
-                             (concat "--project-file=" project-file)
-                           ""))
+                          (finkel--find-config-file "cabal.project")))
+         (project-option
+          (if project-file
+              (concat "--project-file=" project-file)
+            ""))
          (port-number (finkel--read-port-number)))
+    (setq finkel-repl-con-port port-number)
     (concat "cabal " project-option " v2-exec -- "
-            finkel-mode-inferior-lisp-command " repl --listen=" port-number
+            finkel-mode-inferior-lisp-program " repl --listen=" port-number
             " +RTS " finkel-repl-default-rts-option)))
 
 (defun finkel--connection-filter (process msg)
   "Filter to read from PROCESS and display the MSG."
+  (ignore process)
   (message "=> %s" msg))
 
 (defun finkel--connection-sentinel (process msg)
@@ -468,7 +465,7 @@ above at each time until root directory."
       (end-of-defun)
       (let ((end (point)))
         (beginning-of-defun)
-        (list (point) end)))))
+        (cons (point) end)))))
 
 
 ;;; Interactive functions
@@ -508,7 +505,7 @@ to the newly created inferior finkel buffer."
                            (car cmdlist)
                            nil
                            (cdr cmdlist)))
-        (inferior-lisp-mode)))
+        (inferior-finkel-mode)))
   (setq inferior-lisp-buffer "*finkel*")
   (pop-to-buffer "*finkel*"))
 
@@ -516,7 +513,7 @@ to the newly created inferior finkel buffer."
   "Run finkel REPL."
   (interactive)
   (let* ((cmd (cond
-               ((y-or-n-p "Use stack? ")
+               ((y-or-n-p "Use stack exec? ")
                 (finkel--prompt-for-stack-exec))
                ((y-or-n-p "Use cabal v2-exec? ")
                 (finkel--prompt-for-cabal-v2-exec))
@@ -542,19 +539,16 @@ to the newly created inferior finkel buffer."
   "Prompt for input and send to REPL connection."
   (interactive)
   (finkel--send-string
-   (read-string "Eval: " nil 'ski-input-history "" nil)))
+   (read-string "Eval: " nil 'finkel-input-history "" nil)))
 
 (defun finkel-send-form-at-point ()
   "Send outermost form at point to finkel connection."
   (interactive)
-  (let* ((points (finkel--defun-at-point))
-         (start (car points))
-         (end (cadr points)))
+  (destructuring-bind (start . end) (finkel--defun-at-point)
     (let ((overlay (make-overlay start end)))
       (overlay-put overlay 'face 'secondary-selection)
       (run-with-timer 0.2 nil 'delete-overlay overlay))
-    (finkel--send-string
-     (buffer-substring-no-properties start end))))
+    (finkel--send-string (buffer-substring-no-properties start end))))
 
 (defun finkel-load-current-buffer ()
   "Load current buffer to REPL."
@@ -563,6 +557,33 @@ to the newly created inferior finkel buffer."
 
 
 ;;; Mode definition
+
+(defun finkel--mode-variables ()
+  "Initialize `finkel-mode' variables."
+  (setq-local comment-start ";")
+  (setq-local comment-start-skip ";+ *")
+  (setq-local comment-add 1)
+  (setq-local comment-use-syntax t)
+  (setq-local multibyte-syntax-as-symbol t)
+  (setq-local fill-paragraph-function 'lisp-fill-paragraph)
+  (setq-local imenu-generic-expression finkel-imenu-generic-expression)
+  (setq-local indent-line-function 'lisp-indent-line)
+  (setq-local indent-tabs-mode nil)
+  (setq-local inferior-lisp-program finkel-mode-inferior-lisp-program)
+  (setq-local inferior-lisp-load-command ",load \"%s\"\n")
+  (setq-local lisp-describe-sym-command ",info %s\n")
+  (setq-local lisp-indent-function 'finkel-indent-function)
+  (setq-local font-lock-multiline t)
+  (setq-local font-lock-defaults
+              '(finkel-mode-font-lock-keywords
+                nil nil
+                (("+-*/.<>=!?$%_&~^:@" . "w"))
+                nil
+                (font-lock-mark-block-function . mark-defun)
+                (font-lock-extra-managed-props help-echo)
+                (font-lock-syntactic-face-function
+                 . finkel-font-lock-syntactic-face-function)))
+  (finkel--put-indentation-properties))
 
 (defvar finkel-mode-map
   (let ((map (make-sparse-keymap)))
@@ -597,15 +618,26 @@ to the newly created inferior finkel buffer."
 ;;;###autoload
 (define-derived-mode finkel-mode prog-mode "Finkel"
   "Major mode for ediging Finkel code.
+
 \\{finkel-mode-map}"
   (finkel--mode-variables))
+
+;;;###autoload
+(define-derived-mode inferior-finkel-mode inferior-lisp-mode "Inferior Finkel"
+  "Major mode for Finkel inferior process.
+
+\\{inferior-finkel-mode-map}"
+  (setq-local indent-tabs-mode nil))
 
 ;;;###autoload
 (progn
   (add-to-list 'auto-mode-alist '("\\.fnk\\'" . finkel-mode))
   (add-to-list 'interpreter-mode-alist '("fnk" . finkel-mode)))
 
-
 (provide 'finkel-mode)
+
+;;; Local Variables:
+;;; coding: utf-8
+;;; End:
 
 ;;; finkel-mode.el ends here
