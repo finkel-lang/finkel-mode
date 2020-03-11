@@ -157,13 +157,12 @@
 
       ("^(\\(defmodule\\)\\s-+"
        (1 font-lock-keyword-face)
-       ("\\(export\\|require-import\\|require\\)"
+       (,(regexp-opt '("export" "require-and-import" "require") nil)
         (save-excursion (up-list) (point))
         (re-search-backward "defmodule")
         (0 font-lock-keyword-face)))
 
-      ("^\\s-*(\\(import\\)"
-       (1 font-lock-keyword-face)
+      ("\\s-*(\\(import\\)"
        ("\\<\\(qualified\\|as\\|hiding\\)\\>"
         (save-excursion (up-list) (point))
         (re-search-backward "import")
@@ -172,7 +171,7 @@
       ;; FFI import and export
       ("^(\\(foreign\\)\\s-+"
        (1 font-lock-keyword-face)
-       ("\\(import\\|export\\|ccall\\|unsafe\\|safe\\)"
+       (,(regexp-opt '("import" "export" "ccall" "safe" "unsafe") t)
         (save-excursion (up-list) (point))
         (re-search-backward "foreign")
         (0 font-lock-keyword-face)))
