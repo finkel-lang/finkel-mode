@@ -66,35 +66,39 @@
   :type 'string)
 
 (defcustom finkel-indentation-properties
-  `((| . 0)
-    (:: . 1)
-    (<- . 1)
-    (:begin . 0)
-    (case . (2 2 &body))
-    (class . 1)
-    (data . (1 &body))
-    (defn . (2 2 &body))
-    (,(intern "defn'") . defn)
+  `((= finkel-indent-multiargs)
+    (| 0)
+    (:: 1)
+    (<- 1)
+    (:begin 0)
+    (case (2 2 &body))
+    (class 1)
+    (data (1 &body))
+    (defn (2 2 &body))
+    (defn\' . defn)
     (defdo . defn)
-    (defmacro . (0 &body))
-    (defmacro-m . defmacro)
-    (,(intern "defmacro'") . defmacro)
-    (,(intern "defmacro-m'") . defmacro)
-    (defmodule . 1)
-    (do . 0)
-    (eval-and-compile . 0)
-    (eval-when . 1)
-    (:eval-when-compile . 0)
-    (forall . (0 &body))
-    (foreign . 3)
-    (instance . 1)
-    (lefn . ((&whole 4 &rest (&whole 1 2 &lambda &body)) &body))
-    (macrolet . ((&whole 4 &rest (&whole 1 4 &lambda &body)) &body))
+    (defmacro . defn)
+    (defmacro\' . defn)
+    (defmacro-m . defn)
+    (defmacro-m\' . defn)
+    (defmodule 1)
+    (do 0)
+    (eval-and-compile 0)
+    (eval-when 1)
+    (:eval-when-compile 0)
+    (forall (0 &body))
+    (foreign 3)
+    (instance 1)
+    (lefn ((&whole 4 &rest (&whole 1 2 &lambda &body)) &body))
+    (macrolet ((&whole 4 &rest (&whole 1 &lambda &body)) &body))
     (macrolet-m . macrolet)
-    (module . 1)
-    (newtype . (1 &body))
-    (type . (1 &body))
-    (where . (1 &body)))
+    (module 1)
+    (newtype (1 &body))
+    (type (1 &body))
+    (where (1 &body))
+
+    ;; non-Finkel-keywords
+    (when 1))
   "Default indentation properties for Finkel source codes."
   :group 'finkel
   :type '(alist :key-type symbol :value-type sexp))
@@ -293,6 +297,16 @@ Lisp font lock syntactic face function."
   "Put indentation property PROP to SYMBOL."
   (put symbol 'finkel-indent-function prop))
 
+(defun finkel-indent-multiargs
+    (path state indent-point sexp-column normal-indent)
+  "Function to indent form taking multiple arguments.
+Ignores PATH, STATE, INDENT-POINT, SEXP-COLUMN, NORMAL-INDENT and
+return last open column + 2."
+  (ignore path state indent-point sexp-column normal-indent)
+  (let ((last-open-column
+         (save-excursion (goto-char (elt state 1)) (current-column))))
+    (+ last-open-column 2)))
+
 (defun finkel-indent-function (indent-point state)
   "Simple wrapper function over `common-lisp-indent-function'.
 Could be done with advice.  See the function
@@ -307,9 +321,9 @@ STATE."
      ;; Using same column number for '{' and '['.
      ((member (char-after last-open) '(?\{ ?\[))
       (1+ (funcall last-open-column)))
-     ;; For indenting lambda and raw function declaration.
-     ((member (char-after (+ last-open 1)) '(?\\ ?\=))
-      (+ (funcall last-open-column) 2))
+     ;; For lambda, indenting escape character '\\'.
+     ((eq (char-after (+ last-open 1)) ?\\)
+      (finkel-indent-multiargs nil state indent-point nil nil))
      ;; Delegating to `common-lisp-indent-function'.
      (t
       (cl-letf (((symbol-function 'lisp-indent-find-method)
@@ -324,7 +338,7 @@ STATE."
     (cl-destructuring-bind (name . meth0) e
       (let ((meth1 (if (symbolp meth0)
                        (finkel-get-indent-method meth0)
-                     meth0)))
+                     (car meth0))))
         (finkel-put-indent-method name meth1)))))
 
 

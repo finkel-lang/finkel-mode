@@ -166,6 +166,58 @@
       (expect "
 (defn foo [x]
   (print n)))
+" :indented)))
+
+  (describe "defn'"
+    (it "does carry aligned indentation"
+      (expect "
+(defn' foo
+  [n]
+  (print n))
+" :indented))
+
+    (it "does carry aligned indentation with doccomment"
+      (expect "
+(defn' foo
+  \"Documentation comment for `foo'\"
+  [n]
+  (print n))
+" :indented))
+
+    (it "does not carry argument indentation, argument in first line"
+      (expect "
+(defn' foo [x]
+  (print n)))
+" :indented)))
+
+  (describe "macrolet"
+    (it "does carry aligned indentation"
+      (expect "
+(macrolet ((macro-one [a b]
+             `(do (print ,a)
+                  (print ,b)))
+           (macro-two args
+             `[,@args])
+           (macro-three []
+             `(putStrLn \"m3\")))
+  (do (macro-one True False)
+      (print (macro-two 1 2 3))
+      (macro-three)))
+" :indented)))
+
+  (describe "macrolet-m"
+    (it "should indent as done in `macrolet'"
+      (expect "
+(macrolet-m ((macro-one [a b]
+               (return `(do (print ,a)
+                            (print ,b))))
+             (macro-two args
+               (return `[,@args]))
+             (macro-three []
+               (return `(putStrLn \"m3\"))))
+  (do (macro-one True False)
+      (print (macro-two 1 2 3))
+      (macro-three)))
 " :indented))))
 
 (provide 'finkel-mode-test)
