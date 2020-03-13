@@ -31,18 +31,18 @@
 ;;; Code:
 
 (require 'cl-lib)
-(require 'font-lock)
+(require 'cl-indent)
 (require 'imenu)
 (require 'inf-lisp)
-(require 'lisp-mode)
 
 
 ;;; Groups and variables
 
 (defgroup finkel nil
-  "Editing Finkel code."
+  "Major mode for editing Finkel code."
   :prefix "finkel-"
-  :group 'lisp)
+  :group 'languages
+  :link '(emacs-commentary-link :tag "Commentary" "finkel-mode"))
 
 (defcustom finkel-mode-inferior-lisp-program "finkel"
   "The command used by `inferior-lisp-program'."
@@ -66,15 +66,14 @@
   :type 'string)
 
 (defcustom finkel-indentation-properties
-  `((= . (0 &body))
-    (| . 0)
+  `((| . 0)
     (:: . 1)
     (<- . 1)
     (:begin . 0)
-    (case . 1)
+    (case . (2 2 &body))
     (class . 1)
     (data . (1 &body))
-    (defn . (1 &body))
+    (defn . (2 2 &body))
     (,(intern "defn'") . defn)
     (defdo . defn)
     (defmacro . (0 &body))
@@ -90,8 +89,7 @@
     (foreign . 3)
     (instance . 1)
     (lefn . ((&whole 4 &rest (&whole 1 2 &lambda &body)) &body))
-    (macrolet .
-      ((&whole 4 &rest (&whole 1 4 &lambda &body)) &body))
+    (macrolet . ((&whole 4 &rest (&whole 1 4 &lambda &body)) &body))
     (macrolet-m . macrolet)
     (module . 1)
     (newtype . (1 &body))
@@ -287,6 +285,14 @@ Lisp font lock syntactic face function."
 
 ;;; Indent
 
+(defun finkel-get-indent-method (symbol)
+  "Get indent method for SYMBOL from property list."
+  (get symbol 'finkel-indent-function))
+
+(defun finkel-put-indent-method (symbol prop)
+  "Put indentation property PROP to SYMBOL."
+  (put symbol 'finkel-indent-function prop))
+
 (defun finkel-indent-function (indent-point state)
   "Simple wrapper function over `common-lisp-indent-function'.
 Could be done with advice.  See the function
@@ -301,25 +307,25 @@ STATE."
      ;; Using same column number for '{' and '['.
      ((member (char-after last-open) '(?\{ ?\[))
       (1+ (funcall last-open-column)))
-     ;; For indenting lambda.
-     ((eq (char-after (+ last-open 1)) ?\\)
+     ;; For indenting lambda and raw function declaration.
+     ((member (char-after (+ last-open 1)) '(?\\ ?\=))
       (+ (funcall last-open-column) 2))
      ;; Delegating to `common-lisp-indent-function'.
-     (t (common-lisp-indent-function indent-point state)))))
+     (t
+      (cl-letf (((symbol-function 'lisp-indent-find-method)
+                 (lambda (symbol &optional no-compat)
+                   (ignore no-compat)
+                   (finkel-get-indent-method symbol))))
+        (common-lisp-indent-function indent-point state))))))
 
-;;; XXX: Overriding settings for Common Lisp. Indentation for `do' and `case'
-;;; conflicts with Common Lisp. Move the indentation rule to
-;;; `finkel-indent-function'.
 (defun finkel--put-indentation-properties ()
   "Set properties for indentation."
-  ;;; May worth moving the association to customizable variable.
-  (let ((l finkel-indentation-properties))
-    (dolist (e l)
-      (put (car e) 'common-lisp-indent-function
-           (let ((v (cdr e)))
-             (if (symbolp v)
-                 (get v 'common-lisp-indent-function)
-               v))))))
+  (dolist (e finkel-indentation-properties)
+    (cl-destructuring-bind (name . meth0) e
+      (let ((meth1 (if (symbolp meth0)
+                       (finkel-get-indent-method meth0)
+                     meth0)))
+        (finkel-put-indent-method name meth1)))))
 
 
 ;;; Imenu
@@ -548,7 +554,7 @@ to the newly created inferior finkel buffer."
 (defun finkel-send-form-at-point ()
   "Send outermost form at point to finkel connection."
   (interactive)
-  (destructuring-bind (start . end) (finkel--defun-at-point)
+  (cl-destructuring-bind (start . end) (finkel--defun-at-point)
     (let ((overlay (make-overlay start end)))
       (overlay-put overlay 'face 'secondary-selection)
       (run-with-timer 0.2 nil 'delete-overlay overlay))
@@ -587,8 +593,7 @@ to the newly created inferior finkel buffer."
                 (font-lock-mark-block-function . mark-defun)
                 (font-lock-extra-managed-props help-echo)
                 (font-lock-syntactic-face-function
-                 . finkel-font-lock-syntactic-face-function)))
-  (finkel--put-indentation-properties))
+                 . finkel-font-lock-syntactic-face-function))))
 
 (defvar finkel-mode-map
   (let ((map (make-sparse-keymap)))
@@ -605,9 +610,14 @@ to the newly created inferior finkel buffer."
       (bind "C-x C-e" 'lisp-eval-last-sexp)
       map)))
 
+
+;;; Properties for indentation and documentation
+
+(finkel--put-indentation-properties)
+
 (put :doc 'finkel-doc-string-elt 1)
-(put :docp 'finkel-doc-string-elt 1)
-(put :dock 'finkel-doc-string-elt 2)
+(put :doc^ 'finkel-doc-string-elt 1)
+(put :doc$ 'finkel-doc-string-elt 2)
 (put :dh1 'finkel-doc-string-elt 1)
 (put :dh2 'finkel-doc-string-elt 1)
 (put :dh3 'finkel-doc-string-elt 1)
