@@ -1,27 +1,16 @@
 ;;; finkel-mode.el --- Major mode for Finkel -*-lexical-binding:t-*-
 
-;; CopyRight (C) 2017-2020 8c6794b6
+;; Copyright 2017 The finkel-mode Authors.  All rights reserved.
+;;
+;; Use of this source code is governed by a BSD-style license that can be found
+;; in the LICENSE file.
 
 ;; Author: 8c6794b6
+;; Created: Fri Dec 15 2017
+;; Keywords: lisp, languages
 ;; Version: 0.0.1
 ;; Package-Requires: ((emacs "25.3"))
-;; Created: Dec 2017
-;; Keywords: languages
-
-;; This program is free software; you can redistribute it and/or modify
-;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation, either version 3 of the License, or
-;; (at your option) any later version.
-
-;; This program is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU General Public License for more details.
-
-;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-;; This file is not part of GNU Emacs.
+;; Homepage: https://github.com/finkel-lang/finkel-mode
 
 ;;; Commentary:
 
@@ -31,9 +20,9 @@
 ;;; Code:
 
 (require 'cl-lib)
-(require 'cl-indent)
 (require 'imenu)
 (require 'inf-lisp)
+(require 'prog-mode)
 
 
 ;;; Groups and variables
@@ -77,7 +66,8 @@
     (defn (2 2 &body))
     (defn\' . defn)
     (defdo . defn)
-    (defmacro . defn)
+    ;; Avoiding quoted `defmacro' to make `package-lint' happy ...
+    (,(intern "defmacro") . defn)
     (defmacro\' . defn)
     (defmacro-m . defn)
     (defmacro-m\' . defn)
@@ -385,7 +375,6 @@ STATE."
                       finkel-mode-symbol-regexp
                       "\\)"))
     1))
-
   "Expression for `imenu-generic-expression'.")
 
 
@@ -426,7 +415,7 @@ above at each time until root directory."
                           (finkel--find-config-file "stack.yaml")))
          (yaml-option
           (if yaml-file
-              (concat "--stack-yaml=" yaml-file)
+              (concat "--stack-yaml=" (expand-file-name yaml-file))
             ""))
          (port-number (finkel--read-port-number)))
     (setq finkel-repl-con-port port-number)
@@ -441,7 +430,7 @@ above at each time until root directory."
                           (finkel--find-config-file "cabal.project")))
          (project-option
           (if project-file
-              (concat "--project-file=" project-file)
+              (concat "--project-file=" (expand-file-name project-file))
             ""))
          (port-number (finkel--read-port-number)))
     (setq finkel-repl-con-port port-number)
@@ -514,26 +503,26 @@ above at each time until root directory."
   (interactive)
   (delete-process finkel-repl-con))
 
-(defun inferior-finkel (cmd)
-  "Run CMD to start finkel REPL.
+(defun finkel-inferior (cmd)
+  "Run CMD to start inferior finkel.
 Set `inferior-lisp-buffer' with comint on successful start, and pop
 to the newly created inferior finkel buffer."
   (interactive
    (list (if current-prefix-arg
              (read-string "Run finkel: " inferior-lisp-program)
            inferior-lisp-program)))
-  (if (not (comint-check-proc "*finkel*"))
-      (let ((cmdlist (split-string cmd)))
-        (set-buffer (apply #'make-comint
-                           "finkel"
-                           (car cmdlist)
-                           nil
-                           (cdr cmdlist)))
-        (inferior-finkel-mode)))
+  (when (not (comint-check-proc "*finkel*"))
+    (let ((cmdlist (split-string cmd)))
+      (set-buffer (apply #'make-comint
+                         "finkel"
+                         (car cmdlist)
+                         nil
+                         (cdr cmdlist)))
+      (finkel-inferior-mode)))
   (setq inferior-lisp-buffer "*finkel*")
   (pop-to-buffer "*finkel*"))
 
-(defun run-finkel ()
+(defun finkel-run-repl ()
   "Run finkel REPL."
   (interactive)
   (let* ((cmd (cond
@@ -543,21 +532,22 @@ to the newly created inferior finkel buffer."
                 (finkel--prompt-for-cabal-v2-exec))
                (t
                 (concat inferior-lisp-program " repl")))))
-    (inferior-finkel cmd)
+    (finkel-inferior cmd)
     ;; Wait for 1 second, until finkel REPL process been launched. Better to
     ;; detect process startup with comint.
     (sleep-for 1)
     (finkel--make-connection finkel-repl-con-port)))
 
-(defun switch-to-finkel ()
+(defun finkel-switch-to-repl ()
   "Switch to finkel REPL buffer, or start one if not exist."
   (interactive)
   (if (get-buffer-process inferior-lisp-buffer)
       (let ((pop-up-frames
-             (or pop-up-frames
+             ;; Using `symbol-value' to make `elint-current-buffer' happy ...
+             (or (symbol-value 'pop-up-frames)
                  (get-buffer-window inferior-lisp-buffer t))))
         (pop-to-buffer inferior-lisp-buffer))
-    (run-finkel)))
+    (finkel-run-repl)))
 
 (defun finkel-send-input ()
   "Prompt for input and send to REPL connection."
@@ -619,7 +609,7 @@ to the newly created inferior finkel buffer."
       (bind "C-c C-e" 'finkel-send-input)
       (bind "C-c C-k" 'finkel-load-current-buffer)
       (bind "C-c C-l" 'lisp-load-file)
-      (bind "C-c C-z" 'switch-to-finkel)
+      (bind "C-c C-z" 'finkel-switch-to-repl)
       (bind "C-c M-j" 'finkel-repl-connect)
       (bind "C-x C-e" 'lisp-eval-last-sexp)
       map)))
@@ -638,11 +628,13 @@ to the newly created inferior finkel buffer."
 (put :dh4 'finkel-doc-string-elt 1)
 
 (put 'define-macro 'finkel-doc-string-elt 2)
-(put (intern "define-macro'") 'finkel-doc-string-elt 2)
+(put 'define-macro\' 'finkel-doc-string-elt 2)
 (put 'defmacro 'finkel-doc-string-elt 2)
+(put 'defmacro\' 'finkel-doc-string-elt 2)
 (put 'defmacro-m 'finkel-doc-string-elt 2)
-(put (intern "defmacro-m'") 'finkel-doc-string-elt 2)
+(put 'defmacro-m\' 'finkel-doc-string-elt 2 )
 (put 'defn 'finkel-doc-string-elt 2)
+(put 'defn\' 'finkel-doc-string-elt 2)
 
 ;;;###autoload
 (define-derived-mode finkel-mode prog-mode "Finkel"
@@ -652,10 +644,10 @@ to the newly created inferior finkel buffer."
   (finkel--mode-variables))
 
 ;;;###autoload
-(define-derived-mode inferior-finkel-mode inferior-lisp-mode "Inferior Finkel"
+(define-derived-mode finkel-inferior-mode inferior-lisp-mode "Inferior Finkel"
   "Major mode for Finkel inferior process.
 
-\\{inferior-finkel-mode-map}"
+\\{finkel-inferior-mode-map}"
   (setq-local indent-tabs-mode nil))
 
 ;;;###autoload
@@ -667,6 +659,8 @@ to the newly created inferior finkel buffer."
 
 ;;; Local Variables:
 ;;; coding: utf-8
+;;; indent-tabs-mode: nil
+;;; fill-column: 80
 ;;; End:
 
 ;;; finkel-mode.el ends here
