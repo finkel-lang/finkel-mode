@@ -1,5 +1,6 @@
 *~
 *.elc
+*-autoloads.el
 *.o
 codecov.json
 TAGS

@@ -8,6 +8,7 @@
 
 (development
  (depends-on "buttercup")
+ (depends-on "elisp-lint")
  (depends-on "faceup")
  (depends-on "dash")
  (depends-on "s")
