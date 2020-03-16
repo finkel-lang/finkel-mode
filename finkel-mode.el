@@ -55,14 +55,32 @@
   :type 'string)
 
 (defcustom finkel-indentation-properties
-  `((= finkel-indent-multiargs)
+  `(;; Finkel special forms
+    (:begin 0)
+    (:eval-when-compile 0)
+
+    ;; Haskell keywords
+    (= finkel-indent-multiargs)
     (| 0)
     (:: 1)
-    (<- 1)
-    (:begin 0)
-    (case (2 2 &body))
-    (class 1)
-    (data (1 &body))
+    (<- (2 2))
+    (case (2 &body))
+    (class (2 &body))
+    (data . =)
+    (do 0)
+    (foreign . =)
+    (instance 1)
+    (let (4 &body))
+    (module 1)
+    (newtype . =)
+    (type . =)
+    (where (4 &body))
+
+    ;; Haskell Language extension keywords
+    (forall . =)
+
+    ;; Finkel Core keywords
+    (cond 0)
     (defn (2 2 &body))
     (defn\' . defn)
     (defdo . defn)
@@ -72,22 +90,12 @@
     (defmacro-m . defn)
     (defmacro-m\' . defn)
     (defmodule 1)
-    (do 0)
     (eval-and-compile 0)
     (eval-when 1)
-    (:eval-when-compile 0)
-    (forall (0 &body))
-    (foreign 3)
-    (instance 1)
-    (lefn ((&whole 4 &rest (&whole 1 2 &lambda &body)) &body))
     (macrolet ((&whole 4 &rest (&whole 1 &lambda &body)) &body))
     (macrolet-m . macrolet)
-    (module 1)
-    (newtype (1 &body))
-    (type (1 &body))
-    (where (1 &body))
 
-    ;; non-Finkel-keywords
+    ;; Non-keywords
     (when 1))
   "Default indentation properties for Finkel source codes."
   :group 'finkel
@@ -127,8 +135,8 @@
                 ":with-macro"
 
                 ;; Finkel core macros.
-                "cond" "defmacro" "defmacro'" "defmacro-m"
-                "eval-when" "eval-and-compile"
+                "cond" "defmacro" "defmacro'" "defmacro-m" "defmacro-m'"
+                "defn" "defn'" "defmodule" "eval-and-compile" "eval-when"
                 "macrolet" "macrolet-m"
 
                 ;; Haskell keywords, without `else', `in', and `then',

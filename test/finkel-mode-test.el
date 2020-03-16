@@ -90,6 +90,15 @@
   Nothing 0)
 " :indented)))
 
+  (describe "class"
+    (it "doesn't carry indentation"
+      (expect "
+(class (Foo a)
+  (:: foo1 (-> a Int))
+  (:: foo2 (-> a Int Int))
+  (:: foo3 (-> a Int Int Int)))
+" :indented)))
+
   (describe "do"
     (it "does carry aligned indentation"
       (expect "
@@ -97,7 +106,15 @@
     (print 2)
     (print 3)
     (print 4))
-" :indented)))
+" :indented))
+
+    (describe "<-"
+      (it "does not carry indentation"
+        (expect "
+(do (<- variable-with-long-name
+      (function-with-long-name arg1 arg2 arg3 arg4 arg5))
+    (use-the variable-with-long-name))
+" :indented))))
 
   (describe "[]"
     (it "does carry aligned indentation"
@@ -129,6 +146,18 @@
       (expect "
 (\\ x y z
   (>> (print x) (print y) (print z)))
+" :indented)))
+
+  (describe "cond"
+    (it "does carry aligned indentation"
+      (expect "
+(cond
+  ((< n 50)
+   \"was less than 50\")
+  ((< 100 n)
+   \"was greater than 100\")
+  (otherwise
+   \"was inbetween\"))
 " :indented)))
 
   (describe "defn"
@@ -178,6 +207,40 @@
   (print n)))
 " :indented)))
 
+  (describe "forall"
+    (it "does not carry indentation"
+      (expect "
+(forall k1 k2 (:: a k1) (:: b k2)
+  (-> (t a) (t b) (Maybe (:~~: a b))))
+" :indented)))
+
+  (describe "foreign"
+    (it "does not carry indentation"
+      (expect "
+(foreign import ccall unsafe \"math.h tan\"
+  (:: ctan (-> Double Double)))
+" :indented)))
+
+  (describe "instance"
+    (it "does not carry indentation"
+      (expect "
+(instance (=> (C1 a) (C1 (Foo a)))
+  (= c1a (Foo a)
+    expr)
+  (= c1b arg1 (Foo a) body))
+" :indented)))
+
+  (describe "let"
+    (it "does carry local definition, does not carry body"
+      (expect "
+(let ((:: foo (-> Int Int Int))
+      (= foo a b
+        (+ a b))
+      (= bar 30)
+      (= buzz 12))
+  (foo bar buzz))
+" :indented)))
+
   (describe "macrolet"
     (it "does carry aligned indentation"
       (expect "
@@ -206,6 +269,34 @@
   (do (macro-one True False)
       (print (macro-two 1 2 3))
       (macro-three)))
+" :indented)))
+
+  (describe "type"
+    (it "does not carry indentation"
+      (expect "
+(type (MyMaybe a)
+  (Either () a))
+" :indented)))
+
+  (describe "type family"
+    (it "does not carry indentation"
+      (expect "
+(type family (TF3 a)
+  (= (TF3 Int) Double)
+  (= (TF3 Bool) Char)
+  (= (TF3 a) String))
+" :indented)))
+
+  (describe "where"
+    (it "does not carry indentation"
+      (expect "
+(where foo
+  (defn foo
+    (quux bar buzz))
+  (defn bar 10)
+  (defn buzz 20)
+  (defn quux [a b]
+    (+ a b)))
 " :indented))))
 
 (provide 'finkel-mode-test)
