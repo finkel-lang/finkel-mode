@@ -330,7 +330,7 @@ STATE."
                    (finkel-get-indent-method symbol))))
         (common-lisp-indent-function indent-point state))))))
 
-(defun finkel--put-indentation-properties ()
+(defun finkel-put-indentation-properties ()
   "Set properties for indentation."
   (dolist (e finkel-indentation-properties)
     (cl-destructuring-bind (name . meth0) e
@@ -388,7 +388,7 @@ STATE."
 
 ;;; Inferior Finkel
 
-(defun finkel--search-file-upward (file dir)
+(defun finkel-search-file-upward (file dir)
   "Find configuration file.
 Recursively search for file FILE in DIR, with going one directory
 above at each time until root directory."
@@ -397,18 +397,18 @@ above at each time until root directory."
     (cond
      ((file-exists-p config-file) config-file)
      ((equal dir (expand-file-name "/")) nil)
-     (t (finkel--search-file-upward
+     (t (finkel-search-file-upward
          file
          (expand-file-name
           (concat (file-name-as-directory dir) "..")))))))
 
-(defun finkel--find-config-file (file)
+(defun finkel-find-config-file (file)
   "Find configuration file named FILE."
-  (finkel--search-file-upward file
-                              (file-name-directory
-                               (or (buffer-file-name) "/"))))
+  (finkel-search-file-upward file
+                             (file-name-directory
+                              (or (buffer-file-name) "/"))))
 
-(defun finkel--read-port-number ()
+(defun finkel-read-port-number ()
   "Prompt for port and read a number."
   (read-string
    "Port: "
@@ -416,42 +416,42 @@ above at each time until root directory."
    'finkel-repl-port-history
    (number-to-string finkel-repl-default-port)))
 
-(defun finkel--prompt-for-stack-exec ()
+(defun finkel-prompt-for-stack-exec ()
   "Prompt and construct command string to run finkel with stack."
   (let* ((yaml-file
           (read-file-name "Yaml file: " nil nil t
-                          (finkel--find-config-file "stack.yaml")))
+                          (finkel-find-config-file "stack.yaml")))
          (yaml-option
           (if yaml-file
               (concat "--stack-yaml=" (expand-file-name yaml-file))
             ""))
-         (port-number (finkel--read-port-number)))
+         (port-number (finkel-read-port-number)))
     (setq finkel-repl-con-port port-number)
     (concat "stack exec " yaml-option " -- "
             finkel-mode-inferior-lisp-program " repl --listen=" port-number
             " +RTS " finkel-repl-default-rts-option)))
 
-(defun finkel--prompt-for-cabal-v2-exec ()
+(defun finkel-prompt-for-cabal-v2-exec ()
   "Prompt and construct command string to run finkel with cabal v2-exec."
   (let* ((project-file
           (read-file-name "cabal.project file: " nil nil t
-                          (finkel--find-config-file "cabal.project")))
+                          (finkel-find-config-file "cabal.project")))
          (project-option
           (if project-file
               (concat "--project-file=" (expand-file-name project-file))
             ""))
-         (port-number (finkel--read-port-number)))
+         (port-number (finkel-read-port-number)))
     (setq finkel-repl-con-port port-number)
     (concat "cabal " project-option " v2-exec -- "
             finkel-mode-inferior-lisp-program " repl --listen=" port-number
             " +RTS " finkel-repl-default-rts-option)))
 
-(defun finkel--connection-filter (process msg)
+(defun finkel-connection-filter (process msg)
   "Filter to read from PROCESS and display the MSG."
   (ignore process)
   (message "=> %s" msg))
 
-(defun finkel--connection-sentinel (process msg)
+(defun finkel-connection-sentinel (process msg)
   "Sentinel function for PROCESS with MSG."
   (cond
    ((string= "open\n" msg)
@@ -461,7 +461,7 @@ above at each time until root directory."
    (t
     (message "finkel: %s" (replace-regexp-in-string "\n" " " msg)))))
 
-(defun finkel--make-connection (port)
+(defun finkel-make-connection (port)
   "Make and set network connection to REPL server with PORT."
   (setq finkel-repl-con-port port)
   (setq finkel-repl-con
@@ -471,15 +471,15 @@ above at each time until root directory."
          :host 'local
          :service port
          :nowait nil
-         :filter 'finkel--connection-filter
+         :filter 'finkel-connection-filter
          :filter-multibyte t
-         :sentinel 'finkel--connection-sentinel)))
+         :sentinel 'finkel-connection-sentinel)))
 
-(defun finkel--send-string (str)
+(defun finkel-send-string (str)
   "Send STR to REPL server."
   (process-send-string finkel-repl-con str))
 
-(defun finkel--defun-at-point ()
+(defun finkel-defun-at-point ()
   "Get list of start point and end point of current defun."
   (save-excursion
     (save-match-data
@@ -504,7 +504,7 @@ above at each time until root directory."
                  nil 'finkel-repl-port-history
                  (number-to-string finkel-repl-default-port)
                  nil)))
-      (finkel--make-connection port))))
+      (finkel-make-connection port))))
 
 (defun finkel-repl-disconnect ()
   "Disconnect current Finkel REPL server connection."
@@ -535,16 +535,16 @@ to the newly created inferior finkel buffer."
   (interactive)
   (let* ((cmd (cond
                ((y-or-n-p "Use stack exec? ")
-                (finkel--prompt-for-stack-exec))
+                (finkel-prompt-for-stack-exec))
                ((y-or-n-p "Use cabal v2-exec? ")
-                (finkel--prompt-for-cabal-v2-exec))
+                (finkel-prompt-for-cabal-v2-exec))
                (t
                 (concat inferior-lisp-program " repl")))))
     (finkel-inferior cmd)
     ;; Wait for 1 second, until finkel REPL process been launched. Better to
     ;; detect process startup with comint.
     (sleep-for 1)
-    (finkel--make-connection finkel-repl-con-port)))
+    (finkel-make-connection finkel-repl-con-port)))
 
 (defun finkel-switch-to-repl ()
   "Switch to finkel REPL buffer, or start one if not exist."
@@ -560,17 +560,17 @@ to the newly created inferior finkel buffer."
 (defun finkel-send-input ()
   "Prompt for input and send to REPL connection."
   (interactive)
-  (finkel--send-string
+  (finkel-send-string
    (read-string "Eval: " nil 'finkel-input-history "" nil)))
 
 (defun finkel-send-form-at-point ()
   "Send outermost form at point to finkel connection."
   (interactive)
-  (cl-destructuring-bind (start . end) (finkel--defun-at-point)
+  (cl-destructuring-bind (start . end) (finkel-defun-at-point)
     (let ((overlay (make-overlay start end)))
       (overlay-put overlay 'face 'secondary-selection)
       (run-with-timer 0.2 nil 'delete-overlay overlay))
-    (finkel--send-string (buffer-substring-no-properties start end))))
+    (finkel-send-string (buffer-substring-no-properties start end))))
 
 (defun finkel-load-current-buffer ()
   "Load current buffer to REPL."
@@ -580,7 +580,7 @@ to the newly created inferior finkel buffer."
 
 ;;; Mode definition
 
-(defun finkel--mode-variables ()
+(defun finkel-mode-variables ()
   "Initialize `finkel-mode' variables."
   (setq-local comment-start ";")
   (setq-local comment-start-skip ";+ *")
@@ -625,7 +625,7 @@ to the newly created inferior finkel buffer."
 
 ;;; Properties for indentation and documentation
 
-(finkel--put-indentation-properties)
+(finkel-put-indentation-properties)
 
 (put :doc 'finkel-doc-string-elt 1)
 (put :doc^ 'finkel-doc-string-elt 1)
@@ -649,7 +649,7 @@ to the newly created inferior finkel buffer."
   "Major mode for ediging Finkel code.
 
 \\{finkel-mode-map}"
-  (finkel--mode-variables))
+  (finkel-mode-variables))
 
 ;;;###autoload
 (define-derived-mode finkel-inferior-mode inferior-lisp-mode "Inferior Finkel"

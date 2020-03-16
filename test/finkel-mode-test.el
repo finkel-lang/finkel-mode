@@ -67,8 +67,8 @@
 (describe "Indenting"
   (before-all
     (set-syntax-table finkel-mode-syntax-table)
-    (finkel--put-indentation-properties)
-    (finkel--mode-variables))
+    (finkel-put-indentation-properties)
+    (finkel-mode-variables))
 
   (describe "standard cases"
     (it "doesn't carry - opening line has one sexp"
