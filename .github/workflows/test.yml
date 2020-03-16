@@ -1,0 +1,38 @@
+name: test
+
+on:
+  pull_request:
+  push:
+    paths-ignore:
+      - '**.md'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions/setup-python@v1.1.1
+      - uses: purcell/setup-emacs@master
+        with:
+          version: '26.3'
+      - uses: conao3/setup-cask@master
+        with:
+          version: 'snapshot'
+      - name: Setup packages
+        run: make setup
+      - name: Run test
+        run: UNDERCOVER_FORCE=t make test
+      - name: Run lint
+        run: make lint
+      - name: Reformat coverage report
+        run: |
+          jq '.["undercover.el"]
+             | del(.timestamp)
+             | map_values(map_values([null]+.))
+          ' simplecov.json > coverage-final.json
+      - name: Upload coverage
+        uses: codecov/codecov-action@v1
+        with:
+          file: ./coverage-final.json
+          flags: undercover
+          name: simplecov

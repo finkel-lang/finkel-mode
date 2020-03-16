@@ -23,7 +23,7 @@
 
 (when (require 'undercover nil t)
   (undercover "*.el"
-              (:report-file "codecov.json")
+              (:report-file "simplecov.json")
               (:report-format 'simplecov)
               (:send-report nil)))
 

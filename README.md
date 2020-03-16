@@ -1,6 +1,9 @@
 finkel-mode
 ===========
 
+![test](https://github.com/finkel-lang/finkel-mode/workflows/test/badge.svg)
+[![codecov](https://codecov.io/gh/finkel-lang/finkel-mode/branch/master/graph/badge.svg)](https://codecov.io/gh/finkel-lang/finkel-mode)
+
 This repository contains Emacs Lisp codes for ``finkel-mode``, a major
 mode for editing [Finkel][finkel] code with Emacs.
 
