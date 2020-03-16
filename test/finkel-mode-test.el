@@ -51,6 +51,24 @@
           ,(format "\nGiven text:\n%s\nwas instead indented to:\n%s\n"
                    text text-with-indent))))))
 
+(buttercup-define-matcher :imenu (get-text get-section get-name)
+  (let ((text (funcall get-text))
+        (section (funcall get-section))
+        (name (funcall get-name)))
+    (setq imenu--index-alist nil)
+    (insert text)
+    (imenu--make-index-alist)
+    (delete-region (point-min) (point-max))
+    (let* ((entries (cdr (assoc section imenu--index-alist)))
+           (entry (assoc name entries)))
+      (if entry
+          t
+        `(nil
+          .
+          ,(format "Entry named `%s' in section `%s' was not found
+imenu--index-alist: %s"
+                   name section imenu--index-alist))))))
+
 (describe "Syntax"
   (before-all (set-syntax-table finkel-mode-syntax-table))
   (after-each (delete-region (point-min) (point-max)))
@@ -298,6 +316,78 @@
   (defn quux [a b]
     (+ a b)))
 " :indented))))
+
+(describe "Imenu"
+  (before-all (finkel-mode-variables))
+
+  (describe "Functions"
+    (it "should contain a function entry, without type signature"
+      (expect "
+(defn f1 [a b]
+  (do (print a)
+      (print b)))
+" :imenu "Functions" "f1"))
+
+    (it "should contain a function entry, with type signature"
+      (expect "
+(defn (:: f2 (-> Int Int (IO ())))
+  [a b]
+  (do (print a)
+      (print b)))
+" :imenu "Functions" "f2")))
+
+  (describe "Macros"
+    (it "should show a macro entry"
+      (expect "
+(defmacro m1 [a b]
+  `(>> (print ,a) (print ,b)))
+" :imenu "Macros" "m1")))
+
+  (describe "Datatypes"
+    (it "should show data type name with `data'"
+      (expect "
+(data (Foo a)
+  (Foo1 a)
+  (Foo2 a a)
+  (deriving (Eq Show)))
+" :imenu "Datatypes" "Foo"))
+
+    (it "should show data type name with `newtype'"
+      (expect "
+(newtype (Bar a) (Bar {unBar a}))
+" :imenu "Datatypes" "Bar"))
+
+    (it "shoould show data type name with `type'"
+      (expect "
+(type (MyMaybe a)
+  (Either () a))
+" :imenu "Datatypes" "MyMaybe")))
+
+  (describe "Classes"
+    (it "should show type-class with `class', no constraint"
+      (expect "
+(class (C1 a)
+  (:: c1 (-> a Int)))
+" :imenu "Classes" "(C1 a)"))
+
+    (it "should show type-class with `class', with constraint"
+      (expect "
+(class (=> (Eq a) (Show a) (C2 a))
+  (:: c2 (-> a Int))
+" :imenu "Classes" "(=> (Eq a) (Show a) (C2 a))")))
+
+  (describe "Instances"
+    (it "should show instances with `instance', no constraint"
+      (expect "
+(instance (Show Foo)
+  (= show _ \"Foo\"))
+" :imenu "Instances" "(Show Foo)"))
+
+    (it "should show instances with `instance', with constraint"
+      (expect "
+(instance (=> (Show a) (Show (Foo a)))
+  (= show (Foo a) (show a)))
+" :imenu "Instances" "(=> (Show a) (Show (Foo a)))"))))
 
 (provide 'finkel-mode-test)
 

@@ -342,8 +342,28 @@ STATE."
 
 ;;; Imenu
 
-;;; XXX: Rewrite to work with `imenu-create-index-function' to create
-;;; index for top-level `eval-when's and `:begin'.
+(defun finkel-imenu-search-sexp (re)
+  "Make a function for imenu with regexp RE."
+  (when (re-search-backward re nil t)
+    (save-excursion
+      (down-list)
+      (forward-sexp)
+      (down-list)
+      (up-list -1)
+      (let* ((start (point))
+             (end (progn (forward-list) (point))))
+        (set-match-data (list start end))
+        (goto-char start)))))
+
+(defun finkel-imenu-search-class ()
+  "Function to search class definition."
+  (finkel-imenu-search-sexp "^\\s-*(class"))
+
+(defun finkel-imenu-search-instance ()
+  "Function to search instance definition."
+  (finkel-imenu-search-sexp "^\\s-*(instance"))
+
+;;; XXX: Won't work with top-level functions inside `eval-when's and `:begin'.
 (defvar finkel-imenu-generic-expression
   (list
    (list
@@ -368,7 +388,7 @@ STATE."
              "\\s-+(?\\(" finkel-mode-symbol-regexp "\\)"))
     2)
    (list
-    (purecopy "Types")
+    (purecopy "Datatypes")
     (purecopy
      (concat "^("
              (eval-when-compile
@@ -377,12 +397,8 @@ STATE."
                 t))
              "\\s-+(?\\([A-Z]+" finkel-mode-symbol-regexp "\\)"))
     2)
-   (list
-    (purecopy "Classes")
-    (purecopy (concat "^(class\\s-+(\\([A-Z]+"
-                      finkel-mode-symbol-regexp
-                      "\\)"))
-    1))
+   (list (purecopy "Classes") #'finkel-imenu-search-class 0)
+   (list (purecopy "Instances") #'finkel-imenu-search-instance 0))
   "Expression for `imenu-generic-expression'.")
 
 
