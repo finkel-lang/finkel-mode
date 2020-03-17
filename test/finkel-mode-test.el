@@ -100,40 +100,6 @@ imenu--index-alist: %s"
      buzz)
 " :indented)))
 
-  (describe "case"
-    (it "doesn't carry indentation"
-      (expect "
-(case expr
-  (Just n) (+ n 1)
-  Nothing 0)
-" :indented)))
-
-  (describe "class"
-    (it "doesn't carry indentation"
-      (expect "
-(class (Foo a)
-  (:: foo1 (-> a Int))
-  (:: foo2 (-> a Int Int))
-  (:: foo3 (-> a Int Int Int)))
-" :indented)))
-
-  (describe "do"
-    (it "does carry aligned indentation"
-      (expect "
-(do (print 1)
-    (print 2)
-    (print 3)
-    (print 4))
-" :indented))
-
-    (describe "<-"
-      (it "does not carry indentation"
-        (expect "
-(do (<- variable-with-long-name
-      (function-with-long-name arg1 arg2 arg3 arg4 arg5))
-    (use-the variable-with-long-name))
-" :indented))))
-
   (describe "[]"
     (it "does carry aligned indentation"
       (expect "
@@ -175,6 +141,14 @@ imenu--index-alist: %s"
   (>> (print x) (print y) (print z)))
 " :indented)))
 
+  (describe "case"
+    (it "doesn't carry indentation"
+      (expect "
+(case expr
+  (Just n) (+ n 1)
+  Nothing 0)
+" :indented)))
+
   (describe "catch"
     (it "does not carry aligned indentation"
       (expect "
@@ -194,6 +168,15 @@ imenu--index-alist: %s"
    \"was greater than 100\")
   (otherwise
    \"was inbetween\"))
+" :indented)))
+
+  (describe "class"
+    (it "doesn't carry indentation"
+      (expect "
+(class (Foo a)
+  (:: foo1 (-> a Int))
+  (:: foo2 (-> a Int Int))
+  (:: foo3 (-> a Int Int Int)))
 " :indented)))
 
   (describe "defn"
@@ -243,12 +226,39 @@ imenu--index-alist: %s"
   (print n)))
 " :indented)))
 
+  (describe "do"
+    (it "does carry aligned indentation"
+      (expect "
+(do (print 1)
+    (print 2)
+    (print 3)
+    (print 4))
+" :indented))
+
+    (describe "<-"
+      (it "does not carry indentation"
+        (expect "
+(do (<- variable-with-long-name
+      (function-with-long-name arg1 arg2 arg3 arg4 arg5))
+    (use-the variable-with-long-name))
+" :indented))))
+
   (describe "eval-and-compile"
     (it "does not carry indentation"
       (expect "
 (eval-and-compile
   (defn foo [a b]
     (+ a b))
+  (defn bar [x]
+    (print x)))
+" :indented))
+
+    (it "does not carry indentation, contains pragma"
+      (expect "
+(eval-and-compile
+  (defn foo []
+    (+ a b))
+  #p(INLINABLE foo)
   (defn bar [x]
     (print x)))
 " :indented)))
@@ -351,6 +361,13 @@ imenu--index-alist: %s"
   (= (TF3 Int) Double)
   (= (TF3 Bool) Char)
   (= (TF3 a) String))
+" :indented)))
+
+  (describe "unless"
+    (it "does not carry indentation"
+      (expect "
+(unless test
+  (do-something-with arg))
 " :indented)))
 
   (describe "where"

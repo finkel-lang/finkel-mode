@@ -82,7 +82,7 @@
 
     ;; Finkel Core keywords
     (cond 0)
-    (defn (2 2 &body))
+    (defn . =)
     (defn\' . defn)
     (defdo . defn)
     ;; Avoiding quoted `defmacro' to make `package-lint' happy ...
@@ -91,13 +91,14 @@
     (defmacro-m . defn)
     (defmacro-m\' . defn)
     (defmodule 1)
-    (eval-and-compile . =)
+    (eval-and-compile (2 &body))
     (eval-when (4 &body))
     (macrolet ((&whole 4 &rest (&whole 1 &lambda &body)) &body))
     (macrolet-m . macrolet)
 
     ;; Non-keywords
     (catch 1)
+    (unless 1)
     (when 1))
   "Default indentation properties for Finkel source codes."
   :group 'finkel
@@ -281,7 +282,7 @@ Lisp font lock syntactic face function."
     (modify-syntax-entry ?~  "'   " table)
     (modify-syntax-entry ?!  "'   " table)
     (modify-syntax-entry ?\\ "/   " table)
-    (modify-syntax-entry ?#  ". 14nb" table)
+    (modify-syntax-entry ?#  "' 14nb" table)
     (modify-syntax-entry ?\; "< 23" table)
     table))
 
