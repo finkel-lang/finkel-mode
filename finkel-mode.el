@@ -20,6 +20,7 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'cl-indent)
 (require 'imenu)
 (require 'inf-lisp)
 (require 'prog-mode)
@@ -344,6 +345,32 @@ STATE."
         (finkel-put-indent-method name meth1)))))
 
 
+;;; Documentation string element
+
+(defun finkel-put-doc-string-elt (sym pos)
+  "Put doc-string-elt for SYM at POS."
+  (put sym 'finkel-doc-string-elt pos))
+
+(defun finkel-put-doc-string-properties ()
+  "Set properties for doc string elt."
+  (let ((es `((:doc . 1)
+              (:doc^ . 1)
+              (:doc$ . 2)
+              (:dh1 . 1)
+              (:dh2 . 1)
+              (:dh3 . 1)
+              (:dh4 . 1)
+              (,(intern "defmacro") . 2)
+              (defmacro\' . 2)
+              (defmacro-m . 2)
+              (defmacro-m\' . 2)
+              (defn . 2)
+              (defn\' . 2))))
+    (dolist (e es)
+      (cl-destructuring-bind (sym . pos) e
+        (finkel-put-doc-string-elt sym pos)))))
+
+
 ;;; Imenu
 
 (defun finkel-imenu-search-sexp (re)
@@ -646,21 +673,7 @@ to the newly created inferior finkel buffer."
 ;;; Properties for indentation and documentation
 
 (finkel-put-indentation-properties)
-
-(put :doc 'finkel-doc-string-elt 1)
-(put :doc^ 'finkel-doc-string-elt 1)
-(put :doc$ 'finkel-doc-string-elt 2)
-(put :dh1 'finkel-doc-string-elt 1)
-(put :dh2 'finkel-doc-string-elt 1)
-(put :dh3 'finkel-doc-string-elt 1)
-(put :dh4 'finkel-doc-string-elt 1)
-
-(put 'defmacro 'finkel-doc-string-elt 2)
-(put 'defmacro\' 'finkel-doc-string-elt 2)
-(put 'defmacro-m 'finkel-doc-string-elt 2)
-(put 'defmacro-m\' 'finkel-doc-string-elt 2 )
-(put 'defn 'finkel-doc-string-elt 2)
-(put 'defn\' 'finkel-doc-string-elt 2)
+(finkel-put-doc-string-properties)
 
 ;;;###autoload
 (define-derived-mode finkel-mode prog-mode "Finkel"
