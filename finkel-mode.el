@@ -210,8 +210,7 @@
       ;; Function binding and function type signature.
       (,(concat
          "(\\(" (regexp-opt
-                 '("define-macro" "define-macro'"
-                   "defmacro" "defmacro'" "defmacro-m" "defmacro-m'"
+                 '("defmacro" "defmacro'" "defmacro-m" "defmacro-m'"
                    "defn" "defn'" "defdo")
                  t)
          "\\)\\s-+(?\\("
@@ -651,8 +650,6 @@ to the newly created inferior finkel buffer."
 (put :dh3 'finkel-doc-string-elt 1)
 (put :dh4 'finkel-doc-string-elt 1)
 
-(put 'define-macro 'finkel-doc-string-elt 2)
-(put 'define-macro\' 'finkel-doc-string-elt 2)
 (put 'defmacro 'finkel-doc-string-elt 2)
 (put 'defmacro\' 'finkel-doc-string-elt 2)
 (put 'defmacro-m 'finkel-doc-string-elt 2)
