@@ -96,6 +96,7 @@
     (macrolet-m . macrolet)
 
     ;; Non-keywords
+    (catch 1)
     (when 1))
   "Default indentation properties for Finkel source codes."
   :group 'finkel
@@ -297,12 +298,13 @@ Lisp font lock syntactic face function."
 (defun finkel-indent-multiargs
     (path state indent-point sexp-column normal-indent)
   "Function to indent form taking multiple arguments.
-Ignores PATH, STATE, INDENT-POINT, SEXP-COLUMN, NORMAL-INDENT and
-return last open column + 2."
-  (ignore path state indent-point sexp-column normal-indent)
-  (let ((last-open-column
-         (save-excursion (goto-char (elt state 1)) (current-column))))
-    (+ last-open-column 2)))
+If PATH shows nested element, returns SEXP-COLUMN + 2, otherwise
+NORMAL-INDENT.  STATE and INDENT-POINT are ignored,"
+  (ignore state indent-point)
+  ;; Use normal indent when the multi-arg form has inner lists.
+  (if (cadr path)
+      normal-indent
+    (+ sexp-column 2)))
 
 (defun finkel-indent-function (indent-point state)
   "Simple wrapper function over `common-lisp-indent-function'.
@@ -320,7 +322,10 @@ STATE."
       (1+ (funcall last-open-column)))
      ;; For lambda, indenting escape character '\\'.
      ((eq (char-after (+ last-open 1)) ?\\)
-      (finkel-indent-multiargs nil state indent-point nil nil))
+      (let ((last-open-column (save-excursion
+                                (goto-char (elt state 1))
+                                (current-column))))
+        (+ last-open-column 2)))
      ;; Delegating to `common-lisp-indent-function'.
      (t
       (cl-letf (((symbol-function 'lisp-indent-find-method)

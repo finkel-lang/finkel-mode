@@ -157,13 +157,31 @@ imenu--index-alist: %s"
   (do (print a)
       (print b)
       (print c)))
-:" :indented)))
+:" :indented))
+
+    (it "does carry inner form"
+      (expect "
+(let ((= foo (foldl bar buzz quux
+                    more args1 args2))
+      (= bar a b c d
+        (blah a (c d) b)))
+  (foo bar))
+" :indented)))
 
   (describe "\\"
     (it "does not carry indentation of argument"
       (expect "
 (\\ x y z
   (>> (print x) (print y) (print z)))
+" :indented)))
+
+  (describe "catch"
+    (it "does not carry aligned indentation"
+      (expect "
+(catch (>> (putStr prompt) (fmap Just getLine))
+  (\\ e (if (isEOFError e)
+           (return Nothing)
+           (throwIO e))))
 " :indented)))
 
   (describe "cond"
