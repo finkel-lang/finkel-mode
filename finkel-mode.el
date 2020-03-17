@@ -90,8 +90,8 @@
     (defmacro-m . defn)
     (defmacro-m\' . defn)
     (defmodule 1)
-    (eval-and-compile 0)
-    (eval-when 1)
+    (eval-and-compile . =)
+    (eval-when (4 &body))
     (macrolet ((&whole 4 &rest (&whole 1 &lambda &body)) &body))
     (macrolet-m . macrolet)
 

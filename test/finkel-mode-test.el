@@ -225,6 +225,26 @@ imenu--index-alist: %s"
   (print n)))
 " :indented)))
 
+  (describe "eval-and-compile"
+    (it "does not carry indentation"
+      (expect "
+(eval-and-compile
+  (defn foo [a b]
+    (+ a b))
+  (defn bar [x]
+    (print x)))
+" :indented)))
+
+  (describe "eval-when"
+    (it "does not carry indentation"
+      (expect "
+(eval-when [compile]
+  (defn foo [a b]
+    (+ a b))
+  (defn bar [x]
+    (print x)))
+" :indented)))
+
   (describe "forall"
     (it "does not carry indentation"
       (expect "
@@ -287,6 +307,16 @@ imenu--index-alist: %s"
   (do (macro-one True False)
       (print (macro-two 1 2 3))
       (macro-three)))
+" :indented)))
+
+  (describe "return"
+    (it "does indent as ordinal function"
+      (expect "
+(return
+ `(:begin
+    (:eval-when-compile
+      ,@body)
+    ,@body))
 " :indented)))
 
   (describe "type"
