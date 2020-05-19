@@ -93,6 +93,7 @@
     (defmodule 1)
     (eval-and-compile (2 &body))
     (eval-when (4 &body))
+    (import-when . eval-when)
     (macrolet ((&whole 4 &rest (&whole 1 &lambda &body)) &body))
     (macrolet-m . macrolet)
 
@@ -160,7 +161,9 @@
 
       ("^(\\(defmodule\\)\\s-+"
        (1 font-lock-keyword-face)
-       (,(regexp-opt '("export" "require-and-import" "require") nil)
+       (,(regexp-opt
+          '("export" "import-when" "require-and-import" "require")
+          nil)
         (save-excursion (up-list) (point))
         (re-search-backward "defmodule")
         (0 font-lock-keyword-face)))
