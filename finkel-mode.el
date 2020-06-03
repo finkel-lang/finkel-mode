@@ -298,7 +298,7 @@ Lisp font lock syntactic face function."
     (modify-syntax-entry ?|  "_   " table)
     (modify-syntax-entry ?~  "'   " table)
     (modify-syntax-entry ?!  "'   " table)
-    (modify-syntax-entry ?\\ "_   " table)
+    (modify-syntax-entry ?\\ "\\   " table)
     (modify-syntax-entry ?#  "_ 14nb" table)
     (modify-syntax-entry ?\; "< 23" table)
     table))
