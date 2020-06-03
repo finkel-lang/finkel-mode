@@ -258,7 +258,7 @@ imenu--index-alist: %s"
 (eval-and-compile
   (defn foo []
     (+ a b))
-  #p(INLINABLE foo)
+  %p(INLINABLE foo)
   (defn bar [x]
     (print x)))
 " :indented)))

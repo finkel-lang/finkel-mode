@@ -129,6 +129,22 @@
 (defconst finkel-mode-font-lock-keywords-1
   (eval-when-compile
     `(
+      ;; Discard prefix.
+      ("%_"
+       (0 font-lock-preprocessor-face)
+       ("[^ \n]+"
+        (save-excursion (forward-sexp) (point))
+        (re-search-backward "%_")
+        (0 font-lock-comment-face t)))
+
+      ;; Pragmas
+      ("%p("
+       (0 font-lock-preprocessor-face)
+       ("[^ \n]+"
+        (save-excursion (up-list) (point))
+        (re-search-backward "%p(")
+        (0 font-lock-preprocessor-face)))
+
       ;; Keywords.
       (,(concat
          "(" (regexp-opt
@@ -147,7 +163,7 @@
                 ;; since those are implicitly expressed with
                 ;; S-expressions and won't appear in Finkel codes.
                 "case" "class" "data" "default" "deriving" "do"
-                "foreign" "if" "import" "infix" "infixl" "infixr"
+                "foreign" "if" "infix" "infixl" "infixr"
                 "instance" "let" "module" "newtype" "type" "where"
 
                 ;; GHC specific
@@ -158,11 +174,10 @@
        . 1)
 
       ;; defmodule and its internal
-
       ("^(\\(defmodule\\)\\s-+"
        (1 font-lock-keyword-face)
        (,(regexp-opt
-          '("export" "import-when" "require-and-import" "require")
+          '("export" "import-when" "import" "require-and-import" "require")
           nil)
         (save-excursion (up-list) (point))
         (re-search-backward "defmodule")
@@ -182,14 +197,7 @@
         (re-search-backward "foreign")
         (0 font-lock-keyword-face)))
 
-      ;; Pragmas.
-      ("#p("
-       (0 font-lock-preprocessor-face)
-       ("[^ \n]+"
-        (save-excursion (up-list) (point))
-        (re-search-backward "#p(")
-        (0 font-lock-preprocessor-face)))
-
+      ;; Documentation
       ("\\_<\\(:doc[$\\^]?\\|:dh[1234]\\)\\_>"
        (0 font-lock-variable-name-face))
 
@@ -204,6 +212,10 @@
                  t)
                 "\\_>")
        (1 font-lock-variable-name-face))
+
+      ;; Characters
+      ("#'\\([^\n ]+\\)?"
+       (1 font-lock-string-face))
 
       ;; Operator functions.
       ("\\_<[~!#$%&*+-./<=>?@^|\\\\]+\\_>"
@@ -226,7 +238,9 @@
        (3 font-lock-function-name-face))
 
       ;; Function definition (defn style)
-      (,(concat "(\\(defn\\|defdo\\)\\s-+(::\\s-+\\(\\sw+\\)")
+      (,(concat "(\\(defn\\|defdo\\)\\s-+(::\\s-+\\("
+                finkel-mode-symbol-regexp
+                "\\)")
        (1 font-lock-keyword-face)
        (2 font-lock-function-name-face))
 
@@ -284,8 +298,8 @@ Lisp font lock syntactic face function."
     (modify-syntax-entry ?|  "_   " table)
     (modify-syntax-entry ?~  "'   " table)
     (modify-syntax-entry ?!  "'   " table)
-    (modify-syntax-entry ?\\ "/   " table)
-    (modify-syntax-entry ?#  "' 14nb" table)
+    (modify-syntax-entry ?\\ "_   " table)
+    (modify-syntax-entry ?#  "_ 14nb" table)
     (modify-syntax-entry ?\; "< 23" table)
     table))
 
@@ -634,7 +648,8 @@ to the newly created inferior finkel buffer."
 (defun finkel-mode-variables ()
   "Initialize `finkel-mode' variables."
   (setq-local comment-start ";")
-  (setq-local comment-start-skip ";+ *")
+  (setq-local comment-start-skip "\\(;+\\|#;+\\)\\s *")
+  (setq-local comment-end-skip "")
   (setq-local comment-add 1)
   (setq-local comment-use-syntax t)
   (setq-local multibyte-syntax-as-symbol t)
@@ -650,9 +665,7 @@ to the newly created inferior finkel buffer."
   (setq-local font-lock-multiline t)
   (setq-local font-lock-defaults
               '(finkel-mode-font-lock-keywords
-                nil nil
-                (("+-*/.<>=!?$%_&~^:@" . "w"))
-                nil
+                nil nil nil nil
                 (font-lock-mark-block-function . mark-defun)
                 (font-lock-extra-managed-props help-echo)
                 (font-lock-syntactic-face-function
