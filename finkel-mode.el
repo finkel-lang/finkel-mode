@@ -66,6 +66,7 @@
     (:: 1)
     (<- (2 2))
     (case (2 &body))
+    (case-do . case)
     (class (2 &body))
     (data . =)
     (do 0)
@@ -144,34 +145,6 @@
         (save-excursion (up-list) (point))
         (re-search-backward "%p(")
         (0 font-lock-preprocessor-face)))
-
-      ;; Keywords.
-      (,(concat
-         "(" (regexp-opt
-              '(;; Finkel special forms.
-                ":begin" ":eval-when-compile"
-                ":quote" ":quasiquote" ":require"
-                ":unquote" ":unquote-splice"
-                ":with-macro"
-
-                ;; Finkel core macros.
-                "cond" "defmacro" "defmacro'" "defmacro-m" "defmacro-m'"
-                "defn" "defn'" "defmodule" "eval-and-compile" "eval-when"
-                "macrolet" "macrolet-m"
-
-                ;; Haskell keywords, without `else', `in', and `then',
-                ;; since those are implicitly expressed with
-                ;; S-expressions and won't appear in Finkel codes.
-                "case" "class" "data" "default" "deriving" "do"
-                "foreign" "if" "infix" "infixl" "infixr"
-                "instance" "let" "module" "newtype" "type" "where"
-
-                ;; GHC specific
-                "data family" "data instance" "forall" "newtype instance"
-                "type family" "type instance")
-              t)
-         "\\>")
-       . 1)
 
       ;; defmodule and its internal
       ("^(\\(defmodule\\)\\s-+"
@@ -260,6 +233,40 @@
       ;; Word surrounded with `', treated as constant.
       ("`\\([^ ]+\\)'"
        (1 font-lock-constant-face prepend))
+
+      ;; Keywords.
+      (,(concat
+         ;;"("
+         ;; "[( ]"
+         "\\_<"
+         (regexp-opt
+          '(;; Finkel special forms.
+            ":begin" ":eval-when-compile"
+            ":quote" ":quasiquote" ":require"
+            ":unquote" ":unquote-splice"
+            ":with-macro"
+
+            ;; Finkel core macros.
+            "case-do""cond" "defmacro" "defmacro'" "defmacro-m"
+            "defmacro-m'" "defn" "defn'" "defmodule" "eval-and-compile"
+            "eval-when" "macrolet" "macrolet-m" "import-when"
+
+            ;; Haskell keywords, without `else', `in', and `then',
+            ;; since those are implicitly expressed with
+            ;; S-expressions and won't appear in Finkel codes.
+            "case" "class" "data" "default" "deriving" "do"
+            "foreign" "if" "import" "infix" "infixl" "infixr"
+            "instance" "let" "module" "newtype" "type" "where"
+
+            ;; GHC specific
+            "anyclass" "forall" "stock" "via"
+            "data family" "data instance" "newtype instance"
+            "type family" "type instance")
+          t)
+         ;; "\\>"
+         "\\_>"
+         )
+       . 1)
 
       ;; Errors.
       ("\\_<\\(error\\|undefined\\)\\_>"

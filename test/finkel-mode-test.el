@@ -149,6 +149,14 @@ imenu--index-alist: %s"
   Nothing 0)
 " :indented)))
 
+  (describe "case-do"
+    (it "doesn't carry indentation"
+      (expect "
+(case-do expr
+  (Just n) (print n)
+  Nothing (putStrLn \"nothing\"))
+" :indented)))
+
   (describe "catch"
     (it "does not carry aligned indentation"
       (expect "
