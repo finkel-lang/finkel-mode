@@ -59,6 +59,7 @@
   `(;; Finkel special forms
     (:begin 0)
     (:eval-when-compile 0)
+    (:with-macro (4 &body))
 
     ;; Haskell keywords
     (= finkel-indent-multiargs)
@@ -89,8 +90,8 @@
     ;; Avoiding quoted `defmacro' to make `package-lint' happy ...
     (,(intern "defmacro") . defn)
     (defmacro\' . defn)
-    (defmacro-m . defn)
-    (defmacro-m\' . defn)
+    (defmacroM . defn)
+    (defmacroM\' . defn)
     (defmodule 1)
     (eval-and-compile (2 &body))
     (eval-when (4 &body))
@@ -201,7 +202,7 @@
       ;; Function binding and function type signature.
       (,(concat
          "(\\(" (regexp-opt
-                 '("defmacro" "defmacro'" "defmacro-m" "defmacro-m'"
+                 '("defmacro" "defmacro'" "defmacroM" "defmacroM'"
                    "defn" "defn'" "defdo")
                  t)
          "\\)\\s-+(?\\("
@@ -247,9 +248,9 @@
             ":with-macro"
 
             ;; Finkel core macros.
-            "case-do""cond" "defmacro" "defmacro'" "defmacro-m"
-            "defmacro-m'" "defn" "defn'" "defmodule" "eval-and-compile"
-            "eval-when" "macrolet" "macrolet-m" "import-when"
+            "case-do""cond" "defmacro" "defmacro'" "defmacroM"
+            "defmacroM'" "defn" "defn'" "defmodule" "eval-and-compile"
+            "eval-when" "lcase" "macrolet" "macrolet-m" "import-when"
 
             ;; Haskell keywords, without `else', `in', and `then',
             ;; since those are implicitly expressed with
@@ -263,9 +264,7 @@
             "data family" "data instance" "newtype instance"
             "type family" "type instance")
           t)
-         ;; "\\>"
-         "\\_>"
-         )
+         "\\_>")
        . 1)
 
       ;; Errors.
@@ -387,8 +386,8 @@ STATE."
               (:dh4 . 1)
               (,(intern "defmacro") . 2)
               (defmacro\' . 2)
-              (defmacro-m . 2)
-              (defmacro-m\' . 2)
+              (defmacroM . 2)
+              (defmacroM\' . 2)
               (defn . 2)
               (defn\' . 2))))
     (dolist (e es)
@@ -439,7 +438,7 @@ STATE."
      (concat "^("
              (eval-when-compile
                (regexp-opt
-                '("defmacro" "defmacro'" "defmacro-m" "defmacro-m'")
+                '("defmacro" "defmacro'" "defmacroM" "defmacroM'")
                 t))
              "\\s-+(?\\(" finkel-mode-symbol-regexp "\\)"))
     2)
