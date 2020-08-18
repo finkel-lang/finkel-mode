@@ -330,16 +330,16 @@ imenu--index-alist: %s"
       (macro-three)))
 " :indented)))
 
-  (describe "macrolet-m"
+  (describe "macroletM"
     (it "should indent as done in `macrolet'"
       (expect "
-(macrolet-m ((macro-one [a b]
-               (return `(do (print ,a)
-                            (print ,b))))
-             (macro-two args
-               (return `[,@args]))
-             (macro-three []
-               (return `(putStrLn \"m3\"))))
+(macroletM ((macro-one [a b]
+              (return `(do (print ,a)
+                           (print ,b))))
+            (macro-two args
+              (return `[,@args]))
+            (macro-three []
+              (return `(putStrLn \"m3\"))))
   (do (macro-one True False)
       (print (macro-two 1 2 3))
       (macro-three)))

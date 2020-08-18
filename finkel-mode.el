@@ -55,6 +55,9 @@
   :group 'finkel
   :type 'string)
 
+;;; XXX: Seems like the CAR elements of the indentation properties need to be in
+;;; lower case. Using "defmacrom" instead of "defmacroM".
+
 (defcustom finkel-indentation-properties
   `(;; Finkel special forms
     (:begin 0)
@@ -84,20 +87,21 @@
 
     ;; Finkel Core keywords
     (cond 0)
+    (cond-expand . cond)
     (defn . =)
     (defn\' . defn)
     (defdo . defn)
     ;; Avoiding quoted `defmacro' to make `package-lint' happy ...
     (,(intern "defmacro") . defn)
     (defmacro\' . defn)
-    (defmacroM . defn)
-    (defmacroM\' . defn)
+    (defmacrom . defn)
+    (defmacrom\' . defn)
     (defmodule 1)
     (eval-and-compile (2 &body))
     (eval-when (4 &body))
     (import-when . eval-when)
     (macrolet ((&whole 4 &rest (&whole 1 &lambda &body)) &body))
-    (macrolet-m . macrolet)
+    (macroletm . macrolet)
 
     ;; Non-keywords
     (catch 1)
@@ -150,9 +154,12 @@
       ;; defmodule and its internal
       ("^(\\(defmodule\\)\\s-+"
        (1 font-lock-keyword-face)
-       (,(regexp-opt
-          '("export" "import-when" "import" "require-and-import" "require")
-          nil)
+       (,(concat
+          "\\<"
+          (regexp-opt
+           '("export" "import-when" "import" "require-and-import" "require")
+           nil)
+          "\\>")
         (save-excursion (up-list) (point))
         (re-search-backward "defmodule")
         (0 font-lock-keyword-face)))
@@ -248,9 +255,9 @@
             ":with-macro"
 
             ;; Finkel core macros.
-            "case-do""cond" "defmacro" "defmacro'" "defmacroM"
+            "case-do" "cond" "cond-expand" "defmacro" "defmacro'" "defmacroM"
             "defmacroM'" "defn" "defn'" "defmodule" "eval-and-compile"
-            "eval-when" "lcase" "macrolet" "macrolet-m" "import-when"
+            "eval-when" "lcase" "macrolet" "macroletM" "import-when"
 
             ;; Haskell keywords, without `else', `in', and `then',
             ;; since those are implicitly expressed with
@@ -266,6 +273,10 @@
           t)
          "\\_>")
        . 1)
+
+      ;; Common lisp style keyword
+      ("\\(:[a-z:-_]+\\)"
+       (1 font-lock-builtin-face))
 
       ;; Errors.
       ("\\_<\\(error\\|undefined\\)\\_>"
