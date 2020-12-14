@@ -657,7 +657,7 @@ to the newly created inferior finkel buffer."
    (read-string "Eval: " nil 'finkel-input-history "" nil)))
 
 (defun finkel-send-form-at-point ()
-  "Send outermost form at point to finkel connection."
+  "Send outermost form at current point to finkel connection."
   (interactive)
   (cl-destructuring-bind (start . end) (finkel-defun-at-point)
     (let ((overlay (make-overlay start end)))
