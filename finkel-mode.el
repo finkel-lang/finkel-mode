@@ -665,6 +665,16 @@ to the newly created inferior finkel buffer."
       (run-with-timer 0.2 nil 'delete-overlay overlay))
     (finkel-send-string (buffer-substring-no-properties start end))))
 
+(defun finkel-check-source (file-name)
+  "Check if FILE-NAME needs to be saved."
+  (comint-check-source file-name))
+
+(defun finkel-reload ()
+  "Send reload command to REPL."
+  (interactive)
+  (finkel-check-source (buffer-file-name))
+  (finkel-send-string "(repl-macro reload)"))
+
 (defun finkel-load-current-buffer ()
   "Load current buffer to REPL."
   (interactive)
@@ -709,6 +719,7 @@ to the newly created inferior finkel buffer."
       (bind "C-c C-e" 'finkel-send-input)
       (bind "C-c C-k" 'finkel-load-current-buffer)
       (bind "C-c C-l" 'lisp-load-file)
+      (bind "C-c C-;" 'finkel-reload)
       (bind "C-c C-z" 'finkel-switch-to-repl)
       (bind "C-c M-j" 'finkel-repl-connect)
       (bind "C-x C-e" 'lisp-eval-last-sexp)
