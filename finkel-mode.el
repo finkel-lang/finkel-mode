@@ -90,12 +90,15 @@
     (cond-expand . cond)
     (defn . =)
     (defn\' . defn)
+    (defn- . defn)
     (defdo . defn)
     ;; Avoiding quoted `defmacro' to make `package-lint' happy ...
     (,(intern "defmacro") . defn)
     (defmacro\' . defn)
+    (defmacro- . defn)
     (defmacrom . defn)
     (defmacrom\' . defn)
+    (defmacrom- . defn)
     (defmodule 1)
     (eval-and-compile (2 &body))
     (eval-when (4 &body))
@@ -209,8 +212,9 @@
       ;; Function binding and function type signature.
       (,(concat
          "(\\(" (regexp-opt
-                 '("defmacro" "defmacro'" "defmacroM" "defmacroM'"
-                   "defn" "defn'" "defdo")
+                 '("defmacro" "defmacro'" "defmacro-"
+                   "defmacroM" "defmacroM'" "defmacroM-"
+                   "defn" "defn'" "defn-" "defdo")
                  t)
          "\\)\\s-+(?\\("
          finkel-mode-symbol-regexp
@@ -255,9 +259,16 @@
             ":with-macro"
 
             ;; Finkel core macros.
-            "case-do" "cond" "cond-expand" "defmacro" "defmacro'" "defmacroM"
-            "defmacroM'" "defn" "defn'" "defmodule" "eval-and-compile"
-            "eval-when" "lcase" "macrolet" "macroletM" "import-when"
+            "case-do" "cond" "cond-expand"
+            "defmacro" "defmacro'" "defmacro-"
+            "defmacroM" "defmacroM'" "defmacroM-"
+            "defn" "defn'" "defn-"
+            "defmodule" "eval-and-compile"
+            "eval-when" "lcase"
+            "macroexpand" "macroexpand-1" "macrolet" "macroletM"
+
+            ;; Keyword used in Finkel core macros.
+            "import-when"
 
             ;; Haskell keywords, without `else', `in', and `then',
             ;; since those are implicitly expressed with
