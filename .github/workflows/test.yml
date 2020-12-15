@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - uses: actions/setup-python@v1.1.1
+      - uses: actions/setup-python@v2
       - uses: purcell/setup-emacs@master
         with:
           version: '26.3'
