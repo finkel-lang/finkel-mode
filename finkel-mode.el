@@ -538,9 +538,31 @@ above at each time until root directory."
             finkel-mode-inferior-lisp-program " repl --listen=" port-number
             " +RTS " finkel-repl-default-rts-option)))
 
+(defun finkel--more-than-n-lines (n str)
+  "Return t if STR is more than N lines."
+  (if (<= n 0)
+      t
+    (let ((index-found (string-match "\n" str)))
+      (and index-found
+           (let ((next-str (substring str (+ index-found 1))))
+             (finkel--more-than-n-lines (- n 1) next-str))))))
+
 (defun finkel-connection-filter (process msg)
   "Filter to read from PROCESS and display the MSG."
   (ignore process)
+  (if (finkel--more-than-n-lines 1 msg)
+      (finkel--show-message-multilines msg)
+    (finkel--show-message-oneline msg)))
+
+(defun finkel--show-message-multilines (msg)
+  "Show MSG with temporary buffer."
+  (let ((bufname "*finkel-out*"))
+    (with-output-to-temp-buffer bufname
+      (princ msg))
+    (switch-to-buffer-other-window bufname)))
+
+(defun finkel--show-message-oneline (msg)
+  "Show MSG in minibuffer."
   (message "=> %s" msg))
 
 (defun finkel-connection-sentinel (process msg)
