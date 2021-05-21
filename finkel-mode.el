@@ -50,7 +50,7 @@
   :type 'integer)
 
 (defcustom finkel-repl-default-rts-option
-  "-N"
+  ""
   "Default RTS option of Finkel REPL."
   :group 'finkel
   :type 'string)
