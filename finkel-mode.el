@@ -285,7 +285,7 @@
        . 1)
 
       ;; Common lisp style keyword
-      ("\\(:[a-z:-_]+\\)"
+      ("\\(:[a-z0-9:-_]+\\)"
        (1 font-lock-builtin-face))
 
       ;; Errors.
