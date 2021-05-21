@@ -91,7 +91,6 @@
     (defn . =)
     (defn\' . defn)
     (defn- . defn)
-    (defdo . defn)
     ;; Avoiding quoted `defmacro' to make `package-lint' happy ...
     (,(intern "defmacro") . defn)
     (defmacro\' . defn)
@@ -214,7 +213,7 @@
          "(\\(" (regexp-opt
                  '("defmacro" "defmacro'" "defmacro-"
                    "defmacroM" "defmacroM'" "defmacroM-"
-                   "defn" "defn'" "defn-" "defdo")
+                   "defn" "defn'" "defn-")
                  t)
          "\\)\\s-+(?\\("
          finkel-mode-symbol-regexp
@@ -223,7 +222,7 @@
        (3 font-lock-function-name-face))
 
       ;; Function definition (defn style)
-      (,(concat "(\\(defn\\|defdo\\)\\s-+(::\\s-+\\("
+      (,(concat "(\\(defn\\)\\s-+(::\\s-+\\("
                 finkel-mode-symbol-regexp
                 "\\)")
        (1 font-lock-keyword-face)
@@ -447,8 +446,7 @@ STATE."
     (purecopy
      (concat "^("
              (eval-when-compile
-               (regexp-opt '("defn" "defn'" "defdo")
-                           t))
+               (regexp-opt '("defn" "defn'") t))
              "\\s-+\\(?:(\\s-*::\\s-+\\)?\\("
              finkel-mode-symbol-regexp
              "\\)\\s-+"))
