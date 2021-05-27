@@ -305,7 +305,7 @@ imenu--index-alist: %s"
 " :indented)))
 
   (describe "let"
-    (it "does carry local definition, does not carry body"
+    (it "does carry local definitions, does not carry body"
       (expect "
 (let ((:: foo (-> Int Int Int))
       (= foo a b
@@ -314,6 +314,21 @@ imenu--index-alist: %s"
       (= buzz 12))
   (foo bar buzz))
 " :indented)))
+
+  (describe "lefn"
+    (it "does not carry local definitions"
+      (expect "
+(lefn [(a 1)
+       (f [x y]
+         (+ x (* y 2)))]
+  (f a a)")))
+
+  (describe "lept"
+    (it "does not cally local definitions"
+      (expect "
+(lept [a 1
+       b 2]
+  (+ a b))")))
 
   (describe "macrolet"
     (it "does carry aligned indentation"

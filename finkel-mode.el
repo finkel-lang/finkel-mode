@@ -77,6 +77,8 @@
     (foreign . =)
     (instance 1)
     (let (4 &body))
+    (lefn ((&whole 4 &rest (&whole 1 &rest &body)) &body))
+    (lept (4 &body))
     (module 1)
     (newtype . =)
     (type . =)
@@ -263,7 +265,7 @@
             "defmacroM" "defmacroM'" "defmacroM-"
             "defn" "defn'" "defn-"
             "defmodule" "eval-and-compile"
-            "eval-when" "lcase"
+            "eval-when" "lcase" "lefn" "lept"
             "macroexpand" "macroexpand-1" "macrolet" "macroletM"
 
             ;; Keyword used in Finkel core macros.
