@@ -200,15 +200,19 @@
 
       ;; Characters
       ("#'\\([^\n ]+\\)?"
-       (1 font-lock-string-face))
+       (1 font-lock-string-face prepend))
 
       ;; Operator functions.
       ("\\_<[~!#$%&*+-./<=>?@^|\\\\]+\\_>"
        (0 font-lock-variable-name-face))
 
+      ;; Lambda and bang pattern, these could be concatenatd to varid
+      ("\\(\\\\\\|!\\)"
+       (0 font-lock-variable-name-face))
+
       ;; Type or data constructor.
       ("\\_<!?\\([A-Z][A-Za-z0-9_-]*\\.?\\)+"
-       (0 font-lock-type-face))
+       (1 font-lock-type-face))
 
       ;; Function binding and function type signature.
       (,(concat
@@ -224,7 +228,7 @@
        (3 font-lock-function-name-face))
 
       ;; Function definition (defn style)
-      (,(concat "(\\(defn\\)\\s-+(::\\s-+\\("
+      (,(concat "(\\(defn-?\\)\\s-+(::\\s-+\\("
                 finkel-mode-symbol-regexp
                 "\\)")
        (1 font-lock-keyword-face)
@@ -287,7 +291,7 @@
        . 1)
 
       ;; Common lisp style keyword
-      ("\\(:[a-z0-9:-_]+\\)"
+      ("\\(:[a-z0-9:_-]+\\)"
        (1 font-lock-builtin-face))
 
       ;; Errors.
