@@ -111,9 +111,9 @@ imenu--index-alist: %s"
   (describe "{}"
     (it "does carry aligned indentation"
       (expect "
-(Foo {field-one 1
-      field-two \"two\"
-      field-three #'3})
+(Foo {(= field-one 1)
+      (= field-two \"two\")
+      (= field-three #'3)})
 " :indented)))
 
   (describe "="
@@ -162,8 +162,8 @@ imenu--index-alist: %s"
       (expect "
 (catch (>> (putStr prompt) (fmap Just getLine))
   (\\ e (if (isEOFError e)
-           (return Nothing)
-           (throwIO e))))
+         (return Nothing)
+         (throwIO e))))
 " :indented)))
 
   (describe "cond"

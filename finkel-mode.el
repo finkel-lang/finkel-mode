@@ -76,6 +76,7 @@
     (do 0)
     (foreign . =)
     (instance 1)
+    (if (4 2 2))
     (let (4 &body))
     (lefn ((&whole 4 &rest (&whole 1 &rest &body)) &body))
     (lept (4 &body))
@@ -206,13 +207,13 @@
       ("\\_<[~!#$%&*+-./<=>?@^|\\\\]+\\_>"
        (0 font-lock-variable-name-face))
 
-      ;; Lambda and bang pattern, these could be concatenatd to varid
-      ("\\(\\\\\\|!\\)"
-       (0 font-lock-variable-name-face))
-
       ;; Type or data constructor.
-      ("\\_<!?\\([A-Z][A-Za-z0-9_-]*\\.?\\)+"
-       (1 font-lock-type-face))
+      ("\\_<\\([A-Z][A-za-z0-9_-]*\\.?\\)+"
+       (0 font-lock-type-face))
+
+      ;; Lambda, bang pattern, and type arg could be concatenated to varid
+      ("\\(\\\\\\|!\\|@\\)"
+       (1 font-lock-variable-name-face))
 
       ;; Function binding and function type signature.
       (,(concat
@@ -331,6 +332,8 @@ Lisp font lock syntactic face function."
     (modify-syntax-entry ?|  "_   " table)
     (modify-syntax-entry ?~  "'   " table)
     (modify-syntax-entry ?\\ "\\   " table)
+    (modify-syntax-entry ?!  "'   " table) ; for strict field and bang pattern
+    (modify-syntax-entry ?@  "'   " table) ; for type application
     (modify-syntax-entry ?#  "_ 14nb" table)
     (modify-syntax-entry ?\; "< 23" table)
     table))
@@ -368,8 +371,8 @@ STATE."
             (save-excursion (goto-char last-open)
                             (current-column)))))
     (cond
-     ;; Using same column number for '{' and '['.
-     ((member (char-after last-open) '(?\{ ?\[))
+     ;; Using same column number for '['.
+     ((eq (char-after last-open) ?\[)
       (1+ (funcall last-open-column)))
      ;; For lambda, indenting escape character '\\'.
      ((eq (char-after (+ last-open 1)) ?\\)
