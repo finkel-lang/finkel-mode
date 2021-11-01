@@ -201,7 +201,7 @@
 
       ;; Characters
       ("#'\\([^\n ]+\\)?"
-       (1 font-lock-string-face prepend))
+       (1 font-lock-string-face))
 
       ;; Operator functions.
       ("\\_<[~!#$%&*+-./<=>?@^|\\\\]+\\_>"
@@ -246,7 +246,7 @@
       ;; Top level type signature.
       (,(concat "^(\\(=\\|::\\)\\ +(?\\(" finkel-mode-symbol-regexp "\\)")
        (1 font-lock-keyword-face)
-       (2 font-lock-function-name-face prepend))
+       (2 font-lock-function-name-face))
 
       ;; Word surrounded with `', treated as constant.
       ("`\\([^ ]+\\)'"
