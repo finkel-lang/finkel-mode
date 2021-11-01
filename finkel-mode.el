@@ -55,6 +55,11 @@
   :group 'finkel
   :type 'string)
 
+(defcustom finkel-num-repl-retries 20
+  "Default number of retry attempts when connecting to REPL."
+  :group 'finkel
+  :type 'integer)
+
 ;;; XXX: Seems like the CAR elements of the indentation properties need to be in
 ;;; lower case. Using "defmacrom" instead of "defmacroM".
 
@@ -575,27 +580,42 @@ above at each time until root directory."
 
 (defun finkel-connection-sentinel (process msg)
   "Sentinel function for PROCESS with MSG."
-  (cond
-   ((string= "open\n" msg)
-    (message "finkel: connected to server."))
-   ((string-prefix-p "failed" msg)
-    (message "finkel %s: failed: %s" process msg))
-   (t
-    (message "finkel: %s" (replace-regexp-in-string "\n" " " msg)))))
+  (let ((status (process-status process)))
+    (cond
+     ((eq status 'open)
+      nil)
+     ((eq status 'failed)
+      (message "finkel-connection-sentilel: %s"
+               (replace-regexp-in-string "\n$" "" msg)))
+     (t
+      (message "finkel-connection-sentinel: %s"
+               (replace-regexp-in-string "\n$" "" msg))))))
+
+(defun finkel--process-open (process)
+  "Non-nil when PROCESS is in open state."
+  (and (processp process)
+       (eq (process-status process) 'open)))
 
 (defun finkel-make-connection (port)
   "Make and set network connection to REPL server with PORT."
   (setq finkel-repl-con-port port)
-  (setq finkel-repl-con
-        (make-network-process
-         :name "finkel"
-         :buffer nil
-         :host 'local
-         :service port
-         :nowait nil
-         :filter 'finkel-connection-filter
-         :filter-multibyte t
-         :sentinel 'finkel-connection-sentinel)))
+  (let ((retry 0))
+    (while (and (not (finkel--process-open finkel-repl-con))
+                (< retry finkel-num-repl-retries))
+      (when (processp finkel-repl-con)
+        (delete-process finkel-repl-con))
+      (setq finkel-repl-con
+            (make-network-process
+             :name "finkel-con"
+             :buffer nil
+             :host 'local
+             :service port
+             :nowait t
+             :filter 'finkel-connection-filter
+             :filter-multibyte t
+             :sentinel 'finkel-connection-sentinel))
+      (cl-incf retry)
+      (sleep-for 0.1))))
 
 (defun finkel-send-string (str)
   "Send STR to REPL server."
@@ -631,7 +651,8 @@ above at each time until root directory."
 (defun finkel-repl-disconnect ()
   "Disconnect current Finkel REPL server connection."
   (interactive)
-  (delete-process finkel-repl-con))
+  (when (processp finkel-repl-con)
+    (delete-process finkel-repl-con)))
 
 (defun finkel-inferior (cmd)
   "Run CMD to start inferior finkel.
@@ -642,12 +663,13 @@ to the newly created inferior finkel buffer."
              (read-string "Run finkel: " inferior-lisp-program)
            inferior-lisp-program)))
   (when (not (comint-check-proc "*finkel*"))
-    (let ((cmdlist (split-string cmd)))
-      (set-buffer (apply #'make-comint
-                         "finkel"
-                         (car cmdlist)
-                         nil
-                         (cdr cmdlist)))
+    (let* ((cmdlist (split-string cmd))
+           (comint-buf (apply #'make-comint
+                              "finkel"
+                              (car cmdlist)
+                              nil
+                              (cdr cmdlist))))
+      (set-buffer comint-buf)
       (finkel-inferior-mode)))
   (setq inferior-lisp-buffer "*finkel*")
   (pop-to-buffer "*finkel*"))
@@ -655,17 +677,14 @@ to the newly created inferior finkel buffer."
 (defun finkel-run-repl ()
   "Run finkel REPL."
   (interactive)
-  (let* ((cmd (cond
-               ((y-or-n-p "Use stack exec? ")
-                (finkel-prompt-for-stack-exec))
-               ((y-or-n-p "Use cabal v2-exec? ")
-                (finkel-prompt-for-cabal-v2-exec))
-               (t
-                (concat inferior-lisp-program " repl")))))
+  (let ((cmd (cond
+              ((y-or-n-p "Use stack exec? ")
+               (finkel-prompt-for-stack-exec))
+              ((y-or-n-p "Use cabal v2-exec? ")
+               (finkel-prompt-for-cabal-v2-exec))
+              (t
+               (concat inferior-lisp-program " repl")))))
     (finkel-inferior cmd)
-    ;; Wait for 1 second, until finkel REPL process been launched. Better to
-    ;; detect process startup with comint.
-    (sleep-for 1)
     (finkel-make-connection finkel-repl-con-port)))
 
 (defun finkel-switch-to-repl ()
