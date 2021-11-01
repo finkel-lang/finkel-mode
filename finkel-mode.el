@@ -269,8 +269,8 @@
             "defmacro" "defmacro'" "defmacro-"
             "defmacroM" "defmacroM'" "defmacroM-"
             "defn" "defn'" "defn-"
-            "defmodule" "eval-and-compile"
-            "eval-when" "lcase" "lefn" "lept"
+            "defmodule" "eval-and-compile" "eval-when"
+            "heredoc" "lcase" "lefn" "lept"
             "macroexpand" "macroexpand-1" "macrolet" "macroletM"
 
             ;; Keyword used in Finkel core macros.
