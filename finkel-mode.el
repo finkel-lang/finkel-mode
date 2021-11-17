@@ -82,6 +82,7 @@
     (foreign . =)
     (instance 1)
     (if (4 2 2))
+    (lcase (2 &body))
     (let (4 &body))
     (lefn ((&whole 4 &rest (&whole 1 &rest &body)) &body))
     (lept (4 &body))
