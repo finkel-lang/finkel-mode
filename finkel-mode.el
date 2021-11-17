@@ -197,31 +197,24 @@
       ("\\_<\\(_\\)\\_>"
        (1 font-lock-keyword-face))
 
-      ;; Reserved operators.
-      (,(concat "\\_<"
-                (regexp-opt
-                 '(".." ":" "::" "=" "\\\\" "|" "<-" "->" "~" "@" "=>")
-                 t)
-                "\\_>")
-       (1 font-lock-variable-name-face))
-
       ;; Characters
       ("#'\\([^\n ]+\\)?"
        (1 font-lock-string-face))
 
-      ;; Operator functions.
-      ("\\_<[~!#$%&*+-./<=>?@^|\\\\]+\\_>"
+      ;; Operator functions
+      ("\\_<[!#$%&*+-./<=>?@^|:~\\]+\\_>"
        (0 font-lock-variable-name-face))
 
-      ;; Type or data constructor.
+      ;; Type or data constructor
       ("\\_<\\([A-Z][A-za-z0-9_-]*\\.?\\)+"
        (0 font-lock-type-face))
 
-      ;; Lambda, bang pattern, and type arg could be concatenated to varid
-      ("\\(\\\\\\|!\\|@\\)"
+      ;; Lambda, bang pattern, type arg, and irrefutable pattern can concatenate
+      ;; to varid.
+      ("\\(\\\\\\|!\\|@\\|~\\)"
        (1 font-lock-variable-name-face))
 
-      ;; Function binding and function type signature.
+      ;; Function binding and function type signature
       (,(concat
          "(\\(" (regexp-opt
                  '("defmacro" "defmacro'" "defmacro-"
