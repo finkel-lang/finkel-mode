@@ -10,14 +10,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v2
       - uses: purcell/setup-emacs@master
         with:
-          version: '26.3'
-      - uses: conao3/setup-cask@master
+          version: '29.4'
+      - uses: cask/setup-cask@master
         with:
-          version: 'snapshot'
+          version: '0.8.8'
       - name: Setup packages
         run: make setup
       - name: Run test
