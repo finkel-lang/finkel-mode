@@ -36,3 +36,4 @@ jobs:
           files: ./coverage-final.json
           flags: undercover
           name: simplecov
+          token: ${{ secrets.CODECOV_TOKEN }}
