@@ -324,8 +324,8 @@ Lisp font lock syntactic face function."
   ;; typical Lisp, which is used for block comments in Lisp but guards
   ;; in Finkel.
   (let ((table (copy-syntax-table lisp-mode-syntax-table)))
-    (modify-syntax-entry ?\{ "(}  " table)
-    (modify-syntax-entry ?\} "){  " table)
+    (modify-syntax-entry ?\{ "(}1nb" table)
+    (modify-syntax-entry ?\} "){4nb" table)
     (modify-syntax-entry ?\[ "(]  " table)
     (modify-syntax-entry ?\] ")[  " table)
     (modify-syntax-entry ?|  "_   " table)
@@ -334,8 +334,9 @@ Lisp font lock syntactic face function."
     (modify-syntax-entry ?'  "'   " table)
     (modify-syntax-entry ?!  "'   " table) ; for strict field and bang pattern
     (modify-syntax-entry ?@  "'   " table) ; for type application
-    (modify-syntax-entry ?#  "_ 14nb" table)
-    (modify-syntax-entry ?\; "< 23" table)
+    (modify-syntax-entry ?\- "_ 23" table)
+    (modify-syntax-entry ?\n ">" table)
+    (modify-syntax-entry ?\; "<   " table)
     table))
 
 
@@ -728,8 +729,9 @@ to the newly created inferior finkel buffer."
 (defun finkel-mode-variables ()
   "Initialize `finkel-mode' variables."
   (setq-local comment-start ";")
-  (setq-local comment-start-skip "\\(;+\\|#;+\\)\\s *")
-  (setq-local comment-end-skip "")
+  (setq-local comment-start-skip "\\(;+\\|{-\\)\\s *")
+  (setq-local comment-end-skip "-}")
+  (setq-local font-lock-comment-end-skip "-}")
   (setq-local comment-add 1)
   (setq-local comment-use-syntax t)
   (setq-local multibyte-syntax-as-symbol t)
@@ -785,7 +787,8 @@ to the newly created inferior finkel buffer."
   "Major mode for Finkel inferior process.
 
 \\{finkel-inferior-mode-map}"
-  (setq-local indent-tabs-mode nil))
+  (setq-local indent-tabs-mode nil)
+  (setq-local font-lock-comment-end-skip "-}"))
 
 ;;;###autoload
 (progn
