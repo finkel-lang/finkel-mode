@@ -31,7 +31,7 @@ jobs:
              | map_values(map_values([null]+.))
           ' simplecov.json > coverage-final.json
       - name: Upload coverage
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v4
         with:
           files: ./coverage-final.json
           flags: undercover
