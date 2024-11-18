@@ -31,7 +31,7 @@ jobs:
              | del(.timestamp)
              | map_values(map_values([null]+.))
           ' simplecov.json > coverage-final.json
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v5
         with:
           files: ./coverage-final.json
           flags: undercover
